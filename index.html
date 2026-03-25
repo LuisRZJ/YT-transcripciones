@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YT Transcript</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --surface: #141414;
+    --border: #2a2a2a;
+    --accent: #e8ff47;
+    --text: #e8e4dc;
+    --muted: #6b6b6b;
+    --error: #ff5c5c;
+    --success: #47ffa3;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48px 16px 80px;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 999;
+    opacity: 0.5;
+  }
+
+  header {
+    width: 100%;
+    max-width: 760px;
+    margin-bottom: 52px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 24px;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+
+  .logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px;
+    letter-spacing: -0.5px;
+    color: var(--text);
+  }
+
+  .logo span { color: var(--accent); }
+
+  .badge {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    padding: 3px 8px;
+    border-radius: 2px;
+  }
+
+  .main {
+    width: 100%;
+    max-width: 760px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .input-row { display: flex; }
+
+  input[type="text"] {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-right: none;
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    padding: 14px 18px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  input[type="text"]::placeholder { color: var(--muted); }
+  input[type="text"]:focus { border-color: var(--accent); }
+
+  button {
+    background: var(--accent);
+    border: 1px solid var(--accent);
+    color: #0d0d0d;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 14px 22px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  button:hover { background: #fff; border-color: #fff; }
+  button:active { transform: scale(0.97); }
+  button:disabled {
+    background: var(--border);
+    border-color: var(--border);
+    color: var(--muted);
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .lang-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .lang-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .lang-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .lang-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #0d0d0d;
+    font-weight: 600;
+  }
+
+  #status {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+    min-height: 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #status.error  { color: var(--error); }
+  #status.ok     { color: var(--success); }
+
+  .spinner {
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: none;
+    flex-shrink: 0;
+  }
+
+  .spinner.active { display: block; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #result-container {
+    display: none;
+    flex-direction: column;
+    gap: 16px;
+    animation: fadeUp 0.4s ease forwards;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .result-meta {
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .copy-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .copy-btn:hover  { border-color: var(--accent); color: var(--accent); }
+  .copy-btn.copied { border-color: var(--success); color: var(--success); }
+
+  #transcript {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 28px 32px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    line-height: 2;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 520px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  #transcript::-webkit-scrollbar       { width: 4px; }
+  #transcript::-webkit-scrollbar-track { background: transparent; }
+  #transcript::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .word-count {
+    font-size: 11px;
+    color: var(--muted);
+    text-align: right;
+    letter-spacing: 1px;
+  }
+
+  .divider { border: none; border-top: 1px solid var(--border); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">YT<span>.</span>transcript</div>
+  <div class="badge">vercel edition</div>
+</header>
+
+<div class="main">
+
+  <div class="input-group">
+    <label>URL del vídeo</label>
+    <div class="input-row">
+      <input type="text" id="url-input" placeholder="https://www.youtube.com/watch?v=..." />
+      <button id="fetch-btn" onclick="fetchTranscript()">Extraer →</button>
+    </div>
+  </div>
+
+  <div class="input-group">
+    <label>Idioma preferido</label>
+    <div class="lang-row">
+      <button class="lang-btn active" data-lang="es" onclick="selectLang(this)">ES</button>
+      <button class="lang-btn" data-lang="en" onclick="selectLang(this)">EN</button>
+      <button class="lang-btn" data-lang="pt" onclick="selectLang(this)">PT</button>
+      <button class="lang-btn" data-lang="fr" onclick="selectLang(this)">FR</button>
+      <button class="lang-btn" data-lang="de" onclick="selectLang(this)">DE</button>
+    </div>
+  </div>
+
+  <div id="status">
+    <div class="spinner" id="spinner"></div>
+    <span id="status-text">Esperando URL…</span>
+  </div>
+
+  <div id="result-container">
+    <hr class="divider">
+    <div class="result-header">
+      <span class="result-meta" id="result-meta">— transcripción</span>
+      <button class="copy-btn" id="copy-btn" onclick="copyText()">Copiar todo</button>
+    </div>
+    <div id="transcript"></div>
+    <div class="word-count" id="word-count"></div>
+  </div>
+
+</div>
+
+<script>
+  let selectedLang = 'es';
+
+  function selectLang(btn) {
+    document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedLang = btn.dataset.lang;
+  }
+
+  function extractVideoId(input) {
+    const patterns = [
+      /(?:v=|\/embed\/|\/shorts\/|youtu\.be\/)([A-Za-z0-9_-]{11})/,
+      /^([A-Za-z0-9_-]{11})$/
+    ];
+    for (const p of patterns) {
+      const m = input.match(p);
+      if (m) return m[1];
+    }
+    return null;
+  }
+
+  function setStatus(msg, type = '') {
+    document.getElementById('status-text').textContent = msg;
+    document.getElementById('status').className = type;
+    document.getElementById('spinner').className = 'spinner' + (type === 'loading' ? ' active' : '');
+  }
+
+  function formatTranscript(raw) {
+    return raw
+      .replace(/([.!?])\s+/g, '$1\n')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  }
+
+  async function fetchTranscript() {
+    const input = document.getElementById('url-input').value.trim();
+    if (!input) { setStatus('Introduce una URL.', 'error'); return; }
+
+    const videoId = extractVideoId(input);
+    if (!videoId) { setStatus('URL no reconocida.', 'error'); return; }
+
+    const btn = document.getElementById('fetch-btn');
+    btn.disabled = true;
+    document.getElementById('result-container').style.display = 'none';
+    setStatus('Obteniendo transcripción…', 'loading');
+
+    try {
+      const res  = await fetch(`/api/transcript?v=${videoId}&lang=${selectedLang}`);
+      const data = await res.json();
+
+      if (data.error) {
+        setStatus(`Error: ${data.error}`, 'error');
+        btn.disabled = false;
+        return;
+      }
+
+      const formatted = formatTranscript(data.transcript);
+
+      document.getElementById('transcript').textContent = formatted;
+      document.getElementById('word-count').textContent = `${data.word_count.toLocaleString()} palabras`;
+      document.getElementById('result-meta').textContent = `— ${selectedLang.toUpperCase()} · ${videoId}`;
+
+      const rc = document.getElementById('result-container');
+      rc.style.display = 'flex';
+
+      setStatus(`✓ Transcripción lista (${data.word_count.toLocaleString()} palabras)`, 'ok');
+
+    } catch (err) {
+      setStatus(`Error de red: ${err.message}`, 'error');
+    }
+
+    btn.disabled = false;
+  }
+
+  document.getElementById('url-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') fetchTranscript();
+  });
+</script>
+</body>
+</html>
