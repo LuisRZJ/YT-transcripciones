@@ -1,8 +1,116 @@
-const HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Accept-Language': 'en-US,en;q=0.9,es;q=0.8',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+module.exports = async function handler(req, res) {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Método no permitido' });
+    }
+
+    const { url } = req.body;
+    if (!url) return res.status(400).json({ error: 'Se requiere una URL' });
+
+    const videoId = extractVideoId(url);
+    if (!videoId) return res.status(400).json({ error: 'URL de YouTube inválida' });
+
+    const debug = {};
+
+    try {
+        const transcript = await getViaInnerTube(videoId, debug);
+
+        if (!transcript) {
+            return res.status(404).json({ error: 'No se encontraron subtítulos para este video', debug });
+        }
+
+        res.status(200).json({ transcript });
+    } catch (error) {
+        console.error('Transcript error:', error);
+        res.status(500).json({ error: `Error: ${error.message}`, debug });
+    }
 };
+
+async function getViaInnerTube(videoId, debug) {
+    try {
+        const body = {
+            context: {
+                client: {
+                    clientName: 'WEB',
+                    clientVersion: '2.20240101.00.00',
+                    hl: 'es',
+                }
+            },
+            videoId
+        };
+
+        const res = await fetch(
+            'https://www.youtube.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8',
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'X-YouTube-Client-Name': '1',
+                    'X-YouTube-Client-Version': '2.20240101.00.00',
+                    'Origin': 'https://www.youtube.com',
+                    'Referer': 'https://www.youtube.com/',
+                },
+                body: JSON.stringify(body)
+            }
+        );
+
+        debug.innertube_status = res.status;
+        if (!res.ok) return null;
+
+        const data = await res.json();
+        const tracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+
+        debug.innertube_tracks = tracks?.map(t => ({
+            lang: t.languageCode,
+            name: t.name?.simpleText,
+            auto: t.kind ?? null
+        })) ?? [];
+
+        if (!tracks || tracks.length === 0) return null;
+
+        // Preferir: español > inglés > manual > cualquiera
+        const track = tracks.find(t => t.languageCode?.startsWith('es'))
+            || tracks.find(t => t.languageCode?.startsWith('en'))
+            || tracks.find(t => !t.kind)
+            || tracks[0];
+
+        debug.innertube_selected = { lang: track.languageCode, auto: track.kind ?? null };
+
+        const captRes = await fetch(track.baseUrl + '&fmt=json3');
+        debug.innertube_capt_status = captRes.status;
+        if (!captRes.ok) return null;
+
+        const captData = await captRes.json();
+        debug.innertube_events = (captData.events || []).length;
+
+        const text = (captData.events || [])
+            .filter(e => e.segs)
+            .map(e => e.segs.map(s => s.utf8 ?? '').join(''))
+            .join(' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        return text || null;
+    } catch (e) {
+        debug.innertube_error = e.message;
+        return null;
+    }
+}
+
+function extractVideoId(url) {
+    const patterns = [
+        /[?&]v=([^&#]+)/,
+        /youtu\.be\/([^?&#]+)/,
+        /youtube\.com\/embed\/([^?&#]+)/,
+        /youtube\.com\/shorts\/([^?&#]+)/,
+    ];
+    for (const p of patterns) {
+        const m = url.match(p);
+        if (m) return m[1];
+    }
+    return null;
+}
+
 
 module.exports = async function handler(req, res) {
     if (req.method !== 'POST') {
