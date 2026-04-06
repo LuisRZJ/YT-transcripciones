@@ -1,0 +1,6 @@
+{
+  "name": "transcript-extractor",
+  "dependencies": {
+    "youtube-transcript": "^1.2.1"
+  }
+}
