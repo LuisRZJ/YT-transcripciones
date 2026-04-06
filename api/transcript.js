@@ -20,6 +20,7 @@ export default async function handler(req, res) {
         
         res.status(200).json({ transcript: fullText });
     } catch (error) {
-        res.status(500).json({ error: 'Error al extraer la transcripción. Verifica que el video tenga subtítulos.' });
+        console.error('Transcript error:', error);
+        res.status(500).json({ error: `Error: ${error.message}` });
     }
 }
