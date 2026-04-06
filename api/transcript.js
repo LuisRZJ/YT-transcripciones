@@ -1,3 +1,9 @@
+const HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept-Language': 'en-US,en;q=0.9,es;q=0.8',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+};
+
 module.exports = async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Método no permitido' });
@@ -8,33 +14,17 @@ module.exports = async function handler(req, res) {
         return res.status(400).json({ error: 'Se requiere una URL' });
     }
 
+    const videoId = extractVideoId(url);
+    if (!videoId) {
+        return res.status(400).json({ error: 'URL de YouTube inválida' });
+    }
+
     try {
-        const videoId = extractVideoId(url);
-        if (!videoId) {
-            return res.status(400).json({ error: 'URL de YouTube inválida' });
-        }
+        const transcript = await getViaTimedtextApi(videoId) ?? await getViaPageScraping(videoId);
 
-        const pageRes = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept-Language': 'en-US,en;q=0.9',
-            }
-        });
-
-        if (!pageRes.ok) {
-            return res.status(502).json({ error: 'No se pudo acceder al video de YouTube' });
-        }
-
-        const html = await pageRes.text();
-        const captionsUrl = extractCaptionsUrl(html);
-
-        if (!captionsUrl) {
+        if (!transcript) {
             return res.status(404).json({ error: 'No se encontraron subtítulos para este video' });
         }
-
-        const captionsRes = await fetch(captionsUrl);
-        const xml = await captionsRes.text();
-        const transcript = parseCaptionsXml(xml);
 
         res.status(200).json({ transcript });
     } catch (error) {
@@ -42,6 +32,91 @@ module.exports = async function handler(req, res) {
         res.status(500).json({ error: `Error: ${error.message}` });
     }
 };
+
+// Estrategia 1: API pública de timedtext
+async function getViaTimedtextApi(videoId) {
+    try {
+        const listRes = await fetch(
+            `https://www.youtube.com/api/timedtext?v=${videoId}&type=list`,
+            { headers: HEADERS }
+        );
+        if (!listRes.ok) return null;
+
+        const listXml = await listRes.text();
+        const langMatch = listXml.match(/lang_code="([^"]+)"/);
+        if (!langMatch) return null;
+
+        const captRes = await fetch(
+            `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${langMatch[1]}&fmt=json3`,
+            { headers: HEADERS }
+        );
+        if (!captRes.ok) return null;
+
+        const data = await captRes.json();
+        const text = (data.events || [])
+            .filter(e => e.segs)
+            .map(e => e.segs.map(s => s.utf8 ?? '').join(''))
+            .join(' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        return text || null;
+    } catch {
+        return null;
+    }
+}
+
+// Estrategia 2: scraping de la página del video
+async function getViaPageScraping(videoId) {
+    try {
+        const pageRes = await fetch(`https://www.youtube.com/watch?v=${videoId}`, { headers: HEADERS });
+        if (!pageRes.ok) return null;
+
+        const html = await pageRes.text();
+
+        const idx = html.indexOf('"captionTracks"');
+        if (idx === -1) return null;
+
+        // Parseo robusto del array JSON en lugar de regex corto
+        const sub = html.slice(idx + '"captionTracks":'.length);
+        const arrEnd = findArrayEnd(sub);
+        if (arrEnd === -1) return null;
+
+        let tracks;
+        try {
+            tracks = JSON.parse(sub.slice(0, arrEnd + 1));
+        } catch {
+            return null;
+        }
+
+        if (!Array.isArray(tracks) || tracks.length === 0) return null;
+
+        const captUrl = tracks[0].baseUrl.replace(/\\u0026/g, '&');
+        const captRes = await fetch(captUrl, { headers: HEADERS });
+        const xml = await captRes.text();
+
+        return parseCaptionsXml(xml);
+    } catch {
+        return null;
+    }
+}
+
+// Encuentra el índice del cierre del array JSON (maneja anidamiento y strings)
+function findArrayEnd(str) {
+    let depth = 0;
+    let inString = false;
+    let escape = false;
+    for (let i = 0; i < str.length; i++) {
+        const c = str[i];
+        if (escape) { escape = false; continue; }
+        if (c === '\\' && inString) { escape = true; continue; }
+        if (c === '"') { inString = !inString; continue; }
+        if (inString) continue;
+        if (c === '[') depth++;
+        else if (c === ']') { depth--; if (depth === 0) return i; }
+    }
+    return -1;
+}
 
 function extractVideoId(url) {
     const patterns = [
@@ -55,15 +130,6 @@ function extractVideoId(url) {
         if (m) return m[1];
     }
     return null;
-}
-
-function extractCaptionsUrl(html) {
-    const idx = html.indexOf('"captionTracks"');
-    if (idx === -1) return null;
-    const section = html.slice(idx, idx + 5000);
-    const m = section.match(/"baseUrl":"([^"]+)"/);
-    if (!m) return null;
-    return m[1].replace(/\\u0026/g, '&');
 }
 
 function parseCaptionsXml(xml) {
