@@ -20,10 +20,11 @@ module.exports = async function handler(req, res) {
     }
 
     try {
-        const transcript = await getViaTimedtextApi(videoId) ?? await getViaPageScraping(videoId);
+        const debug = {};
+        const transcript = await getViaTimedtextApi(videoId, debug) ?? await getViaPageScraping(videoId, debug);
 
         if (!transcript) {
-            return res.status(404).json({ error: 'No se encontraron subtítulos para este video' });
+            return res.status(404).json({ error: 'No se encontraron subtítulos para este video', debug });
         }
 
         res.status(200).json({ transcript });
@@ -34,18 +35,21 @@ module.exports = async function handler(req, res) {
 };
 
 // Estrategia 1: API pública de timedtext
-async function getViaTimedtextApi(videoId) {
+async function getViaTimedtextApi(videoId, debug) {
     try {
         const listRes = await fetch(
             `https://www.youtube.com/api/timedtext?v=${videoId}&type=list`,
             { headers: HEADERS }
         );
+        debug.timedtext_status = listRes.status;
         if (!listRes.ok) return null;
 
         const listXml = await listRes.text();
+        debug.timedtext_list = listXml.slice(0, 500);
         const langMatch = listXml.match(/lang_code="([^"]+)"/);
         if (!langMatch) return null;
 
+        debug.timedtext_lang = langMatch[1];
         const captRes = await fetch(
             `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${langMatch[1]}&fmt=json3`,
             { headers: HEADERS }
@@ -53,6 +57,7 @@ async function getViaTimedtextApi(videoId) {
         if (!captRes.ok) return null;
 
         const data = await captRes.json();
+        debug.timedtext_events = (data.events || []).length;
         const text = (data.events || [])
             .filter(e => e.segs)
             .map(e => e.segs.map(s => s.utf8 ?? '').join(''))
@@ -61,42 +66,50 @@ async function getViaTimedtextApi(videoId) {
             .trim();
 
         return text || null;
-    } catch {
+    } catch (e) {
+        debug.timedtext_error = e.message;
         return null;
     }
 }
 
 // Estrategia 2: scraping de la página del video
-async function getViaPageScraping(videoId) {
+async function getViaPageScraping(videoId, debug) {
     try {
         const pageRes = await fetch(`https://www.youtube.com/watch?v=${videoId}`, { headers: HEADERS });
+        debug.scrape_status = pageRes.status;
         if (!pageRes.ok) return null;
 
         const html = await pageRes.text();
+        debug.scrape_html_len = html.length;
 
         const idx = html.indexOf('"captionTracks"');
+        debug.scrape_captionTracks_found = idx !== -1;
         if (idx === -1) return null;
 
-        // Parseo robusto del array JSON en lugar de regex corto
         const sub = html.slice(idx + '"captionTracks":'.length);
         const arrEnd = findArrayEnd(sub);
+        debug.scrape_arrEnd = arrEnd;
         if (arrEnd === -1) return null;
 
         let tracks;
         try {
             tracks = JSON.parse(sub.slice(0, arrEnd + 1));
-        } catch {
+        } catch (e) {
+            debug.scrape_parse_error = e.message;
             return null;
         }
 
+        debug.scrape_tracks = tracks.map(t => ({ lang: t.languageCode, name: t.name?.simpleText, url: t.baseUrl?.slice(0, 80) }));
         if (!Array.isArray(tracks) || tracks.length === 0) return null;
 
         const captUrl = tracks[0].baseUrl.replace(/\\u0026/g, '&');
         const captRes = await fetch(captUrl, { headers: HEADERS });
         const xml = await captRes.text();
+        debug.scrape_xml_len = xml.length;
 
         return parseCaptionsXml(xml);
-    } catch {
+    } catch (e) {
+        debug.scrape_error = e.message;
         return null;
     }
 }

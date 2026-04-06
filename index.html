@@ -2,46 +2,225 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Extractor</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extractor de Transcripciones</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0f0f0f;
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+        }
+
+        h1 {
+            font-size: 1.6rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #fff;
+        }
+
+        .subtitle {
+            font-size: 0.9rem;
+            color: #888;
+            margin-bottom: 32px;
+        }
+
+        .card {
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
+            border-radius: 12px;
+            padding: 24px;
+            width: 100%;
+            max-width: 780px;
+            margin-bottom: 20px;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 0.95rem;
+            color: #e0e0e0;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus {
+            border-color: #ff4444;
+        }
+
+        button {
+            background: #ff4444;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 22px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+
+        button:hover { background: #cc3333; }
+        button:disabled { background: #555; cursor: not-allowed; }
+
+        #estado {
+            margin-top: 14px;
+            font-size: 0.88rem;
+            min-height: 20px;
+            color: #aaa;
+        }
+
+        #estado.error { color: #ff6b6b; }
+        #estado.ok { color: #6bffb8; }
+
+        label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        textarea {
+            width: 100%;
+            background: #111;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
+            padding: 12px 14px;
+            font-size: 0.88rem;
+            color: #ccc;
+            resize: vertical;
+            outline: none;
+            font-family: inherit;
+            line-height: 1.6;
+        }
+
+        textarea:focus { border-color: #444; }
+
+        #debugBox {
+            font-family: 'Cascadia Code', 'Consolas', monospace;
+            font-size: 0.8rem;
+            color: #7ec8e3;
+            background: #0d1117;
+            border-color: #1e3a4a;
+            white-space: pre-wrap;
+        }
+
+        .copy-btn {
+            background: #2a2a2a;
+            color: #aaa;
+            font-size: 0.8rem;
+            font-weight: 500;
+            padding: 6px 14px;
+            border-radius: 6px;
+            border: 1px solid #333;
+            margin-bottom: 8px;
+            float: right;
+        }
+        .copy-btn:hover { background: #333; color: #fff; }
+
+        .clearfix::after { content: ''; display: table; clear: both; }
+    </style>
 </head>
 <body>
-    <input type="text" id="videoUrl" placeholder="URL del video" style="width: 300px;">
-    <button onclick="obtenerTexto()">Extraer</button>
-    
-    <p id="estado"></p>
-    
-    <textarea id="resultado" rows="20" cols="80" placeholder="El texto aparecerá aquí..."></textarea>
+    <h1>Extractor de Transcripciones</h1>
+    <p class="subtitle">Extrae el texto de cualquier video de YouTube</p>
+
+    <div class="card">
+        <div class="input-row">
+            <input type="text" id="videoUrl" placeholder="https://www.youtube.com/watch?v=...">
+            <button id="btn" onclick="obtenerTexto()">Extraer</button>
+        </div>
+        <p id="estado"></p>
+    </div>
+
+    <div class="card">
+        <div class="clearfix">
+            <button class="copy-btn" onclick="copiar('resultado')">Copiar</button>
+            <label>Transcripción</label>
+        </div>
+        <textarea id="resultado" rows="12" placeholder="El texto aparecerá aquí..."></textarea>
+    </div>
+
+    <div class="card">
+        <div class="clearfix">
+            <button class="copy-btn" onclick="copiar('debugBox')">Copiar</button>
+            <label>Respuesta cruda del servidor (debug)</label>
+        </div>
+        <textarea id="debugBox" class="debugBox" rows="10" placeholder="La respuesta JSON completa aparecerá aquí..."></textarea>
+    </div>
 
     <script>
         async function obtenerTexto() {
-            const url = document.getElementById('videoUrl').value;
+            const url = document.getElementById('videoUrl').value.trim();
             const estado = document.getElementById('estado');
             const resultado = document.getElementById('resultado');
+            const debugBox = document.getElementById('debugBox');
+            const btn = document.getElementById('btn');
 
             if (!url) return;
 
+            estado.className = '';
             estado.innerText = 'Extrayendo...';
             resultado.value = '';
+            debugBox.value = '';
+            btn.disabled = true;
 
             try {
                 const response = await fetch('/api/transcript', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url: url })
+                    body: JSON.stringify({ url })
                 });
 
-                const data = await response.json();
+                const rawText = await response.text();
+                debugBox.value = rawText;
 
-                if (response.ok) {
+                let data;
+                try { data = JSON.parse(rawText); } catch { data = null; }
+
+                if (response.ok && data?.transcript) {
                     resultado.value = data.transcript;
-                    estado.innerText = 'Completado';
+                    estado.className = 'ok';
+                    estado.innerText = `Completado — ${data.transcript.split(' ').length} palabras`;
                 } else {
-                    estado.innerText = data.error;
+                    estado.className = 'error';
+                    estado.innerText = data?.error ?? `Error ${response.status}`;
                 }
             } catch (error) {
+                estado.className = 'error';
                 estado.innerText = 'Error de conexión con la API';
+                debugBox.value = error.toString();
+            } finally {
+                btn.disabled = false;
             }
         }
+
+        function copiar(id) {
+            const el = document.getElementById(id);
+            navigator.clipboard.writeText(el.value);
+        }
+
+        document.getElementById('videoUrl').addEventListener('keydown', e => {
+            if (e.key === 'Enter') obtenerTexto();
+        });
     </script>
 </body>
 </html>
