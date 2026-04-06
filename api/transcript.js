@@ -1,6 +1,4 @@
-import { YoutubeTranscript } from 'youtube-transcript';
-
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Método no permitido' });
     }
@@ -12,12 +10,9 @@ export default async function handler(req, res) {
     }
 
     try {
-        // Extrae los fragmentos de la URL proporcionada
+        const { YoutubeTranscript } = await import('youtube-transcript');
         const transcriptList = await YoutubeTranscript.fetchTranscript(url);
-        
-        // Une todos los fragmentos de texto en un solo párrafo
         const fullText = transcriptList.map(item => item.text).join(' ');
-        
         res.status(200).json({ transcript: fullText });
     } catch (error) {
         console.error('Transcript error:', error);
