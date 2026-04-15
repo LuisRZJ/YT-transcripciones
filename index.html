@@ -3,224 +3,478 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Extractor de Transcripciones</title>
+    <title>Supadata - Extractor de Transcripciones</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            background: #0f0f0f;
-            color: #e0e0e0;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 40px 20px;
-        }
-
-        h1 {
-            font-size: 1.6rem;
-            font-weight: 600;
-            margin-bottom: 8px;
-            color: #fff;
-        }
-
-        .subtitle {
-            font-size: 0.9rem;
-            color: #888;
-            margin-bottom: 32px;
-        }
-
-        .card {
-            background: #1a1a1a;
-            border: 1px solid #2a2a2a;
-            border-radius: 12px;
-            padding: 24px;
-            width: 100%;
-            max-width: 780px;
-            margin-bottom: 20px;
-        }
-
-        .input-row {
-            display: flex;
-            gap: 10px;
-        }
-
-        input[type="text"] {
-            flex: 1;
-            background: #111;
-            border: 1px solid #333;
-            border-radius: 8px;
-            padding: 10px 14px;
-            font-size: 0.95rem;
-            color: #e0e0e0;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-
-        input[type="text"]:focus {
-            border-color: #ff4444;
-        }
-
-        button {
-            background: #ff4444;
-            color: #fff;
-            border: none;
-            border-radius: 8px;
-            padding: 10px 22px;
-            font-size: 0.95rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.2s;
-            white-space: nowrap;
-        }
-
-        button:hover { background: #cc3333; }
-        button:disabled { background: #555; cursor: not-allowed; }
-
-        #estado {
-            margin-top: 14px;
-            font-size: 0.88rem;
-            min-height: 20px;
-            color: #aaa;
-        }
-
-        #estado.error { color: #ff6b6b; }
-        #estado.ok { color: #6bffb8; }
-
-        label {
-            display: block;
-            font-size: 0.8rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: #666;
-            margin-bottom: 8px;
-        }
-
-        textarea {
-            width: 100%;
-            background: #111;
-            border: 1px solid #2a2a2a;
-            border-radius: 8px;
-            padding: 12px 14px;
-            font-size: 0.88rem;
-            color: #ccc;
-            resize: vertical;
-            outline: none;
-            font-family: inherit;
-            line-height: 1.6;
-        }
-
-        textarea:focus { border-color: #444; }
-
-        #debugBox {
-            font-family: 'Cascadia Code', 'Consolas', monospace;
-            font-size: 0.8rem;
-            color: #7ec8e3;
-            background: #0d1117;
-            border-color: #1e3a4a;
-            white-space: pre-wrap;
-        }
-
-        .copy-btn {
-            background: #2a2a2a;
-            color: #aaa;
-            font-size: 0.8rem;
-            font-weight: 500;
-            padding: 6px 14px;
-            border-radius: 6px;
-            border: 1px solid #333;
-            margin-bottom: 8px;
-            float: right;
-        }
-        .copy-btn:hover { background: #333; color: #fff; }
-
-        .clearfix::after { content: ''; display: table; clear: both; }
+        body { font-family: 'Inter', sans-serif; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
     </style>
 </head>
-<body>
-    <h1>Extractor de Transcripciones</h1>
-    <p class="subtitle">Extrae el texto de cualquier video de YouTube</p>
+<body class="bg-slate-200 min-h-screen font-sans text-slate-900">
 
-    <div class="card">
-        <div class="input-row">
-            <input type="text" id="videoUrl" placeholder="https://www.youtube.com/watch?v=...">
-            <button id="btn" onclick="obtenerTexto()">Extraer</button>
+    <div class="max-w-4xl mx-auto p-6 pt-12">
+        <!-- Header -->
+        <header class="mb-10 text-center">
+            <h1 class="text-3xl font-bold text-slate-900 flex items-center justify-center gap-3">
+                <i data-lucide="youtube" class="text-red-600 w-8 h-8"></i>
+                Extractor de Transcripciones (IA + Bloques)
+            </h1>
+            <p class="text-slate-700 mt-2">Extrae y estructura videos largos de forma segura usando chunking.</p>
+        </header>
+
+        <!-- Panel de Configuración e Input -->
+        <div class="bg-white rounded-xl shadow-md border border-slate-300 p-6 mb-8">
+            <form id="transcriptForm" class="space-y-5">
+                <!-- API Key Input -->
+                <div>
+                    <label for="apiKey" class="block text-sm font-semibold text-slate-800 mb-1">Supadata API Key</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i data-lucide="key" class="text-slate-500 w-5 h-5"></i>
+                        </div>
+                        <input type="password" id="apiKey" required
+                            class="block w-full pl-10 pr-3 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all text-sm"
+                            placeholder="Pega tu API Key aquí (no se guardará en ningún servidor)">
+                    </div>
+                </div>
+
+                <!-- YouTube URL Input -->
+                <div>
+                    <label for="youtubeUrl" class="block text-sm font-semibold text-slate-800 mb-1">URL del Video de YouTube</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i data-lucide="link" class="text-slate-500 w-5 h-5"></i>
+                        </div>
+                        <input type="url" id="youtubeUrl" required
+                            class="block w-full pl-10 pr-3 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all text-sm"
+                            placeholder="https://www.youtube.com/watch?v=...">
+                    </div>
+                </div>
+
+                <!-- Botón de Envío -->
+                <button type="submit" id="submitBtn"
+                    class="w-full bg-blue-700 hover:bg-blue-800 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:bg-blue-400 disabled:cursor-not-allowed">
+                    <i data-lucide="download" class="w-5 h-5"></i>
+                    <span>Extraer y Procesar Transcripción</span>
+                </button>
+            </form>
         </div>
-        <p id="estado"></p>
+
+        <!-- Estado de Carga Supadata -->
+        <div id="loadingState" class="hidden flex-col items-center justify-center py-12">
+            <i data-lucide="loader-2" class="w-10 h-10 text-blue-600 animate-spin mb-4"></i>
+            <p class="text-slate-800 font-medium">Conectando con Supadata...</p>
+        </div>
+
+        <!-- Mensaje de Error -->
+        <div id="errorState" class="hidden bg-red-100 border border-red-300 text-red-900 p-4 rounded-lg mb-8 flex items-start gap-3">
+            <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0 mt-0.5"></i>
+            <div>
+                <h3 class="font-bold">Error al procesar la solicitud</h3>
+                <p id="errorMessage" class="text-sm mt-1"></p>
+            </div>
+        </div>
+
+        <!-- Resultados -->
+        <div id="resultsContainer" class="hidden bg-white rounded-xl shadow-md border border-slate-300 overflow-hidden">
+            
+            <!-- Pestañas -->
+            <div class="border-b border-slate-300 bg-slate-100 flex">
+                <button onclick="switchTab('text')" id="tab-text" class="flex-1 py-3 px-4 text-sm font-semibold border-b-2 border-blue-700 text-blue-700 transition-colors flex items-center justify-center gap-2">
+                    <i data-lucide="align-left" class="w-4 h-4"></i> Texto Procesado (IA)
+                </button>
+                <button onclick="switchTab('json')" id="tab-json" class="flex-1 py-3 px-4 text-sm font-semibold border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-200 transition-colors flex items-center justify-center gap-2">
+                    <i data-lucide="code" class="w-4 h-4"></i> Datos Originales (JSON)
+                </button>
+            </div>
+
+            <div class="p-4 relative group">
+                <!-- Botones de Acción -->
+                <div class="absolute top-6 right-6 flex gap-2 z-10">
+                    <button onclick="downloadContent()" class="p-2 bg-white border border-slate-300 rounded-md shadow-sm text-slate-700 hover:text-blue-700 hover:bg-blue-50 transition-colors" title="Descargar archivo">
+                        <i data-lucide="download" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="copyContent()" class="p-2 bg-white border border-slate-300 rounded-md shadow-sm text-slate-700 hover:text-blue-700 hover:bg-blue-50 transition-colors" title="Copiar al portapapeles">
+                        <i data-lucide="copy" class="w-4 h-4"></i>
+                    </button>
+                </div>
+
+                <!-- Contenido Texto -->
+                <div id="content-text" class="block">
+                    <!-- Estado de Carga IA -->
+                    <div id="aiLoadingState" class="hidden flex-col items-center justify-center py-12">
+                        <i data-lucide="sparkles" class="w-10 h-10 text-purple-600 animate-pulse mb-4"></i>
+                        <p class="text-slate-800 font-bold mt-2">IA Estructurando Párrafos</p>
+                        <p id="aiProgressText" class="text-slate-600 font-medium text-sm mt-1">Iniciando proceso...</p>
+                        <!-- Barra de progreso visual -->
+                        <div class="w-64 h-2 bg-slate-200 rounded-full mt-4 overflow-hidden border border-slate-300">
+                            <div id="aiProgressBar" class="h-full bg-purple-500 transition-all duration-300 w-0"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Resultados IA -->
+                    <div id="aiResults" class="hidden">
+                        <h2 id="aiTitle" class="text-xl font-bold text-slate-900 mb-4 pr-24"></h2>
+                        <div id="plainTextOutput" class="p-5 bg-slate-100 border border-slate-300 rounded-lg text-slate-800 text-sm leading-relaxed whitespace-pre-wrap max-h-[400px] overflow-y-auto mb-4 font-sans">
+                        </div>
+                        <div class="bg-blue-100 border border-blue-300 rounded-lg p-4">
+                            <h3 class="text-sm font-bold text-blue-900 mb-2 flex items-center gap-2">
+                                <i data-lucide="lightbulb" class="w-4 h-4 text-yellow-600"></i> Resumen Breve
+                            </h3>
+                            <p id="aiSummary" class="text-sm text-blue-900 leading-relaxed"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contenido JSON -->
+                <div id="content-json" class="hidden">
+                    <pre id="jsonOutput" class="p-4 bg-slate-900 rounded-lg text-green-400 text-sm leading-relaxed overflow-x-auto max-h-[500px] overflow-y-auto font-mono"></pre>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div class="card">
-        <div class="clearfix">
-            <button class="copy-btn" onclick="copiar('resultado')">Copiar</button>
-            <label>Transcripción</label>
-        </div>
-        <textarea id="resultado" rows="12" placeholder="El texto aparecerá aquí..."></textarea>
-    </div>
-
-    <div class="card">
-        <div class="clearfix">
-            <button class="copy-btn" onclick="copiar('debugBox')">Copiar</button>
-            <label>Respuesta cruda del servidor (debug)</label>
-        </div>
-        <textarea id="debugBox" class="debugBox" rows="10" placeholder="La respuesta JSON completa aparecerá aquí..."></textarea>
+    <!-- Notificación Toast -->
+    <div id="toast" class="fixed bottom-4 right-4 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-800 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 z-50">
+        <i data-lucide="check-circle" class="w-5 h-5 text-green-400"></i>
+        <span class="text-sm font-medium">¡Acción completada!</span>
     </div>
 
     <script>
-        async function obtenerTexto() {
-            const url = document.getElementById('videoUrl').value.trim();
-            const estado = document.getElementById('estado');
-            const resultado = document.getElementById('resultado');
-            const debugBox = document.getElementById('debugBox');
-            const btn = document.getElementById('btn');
+        // Inicializar iconos
+        lucide.createIcons();
 
-            if (!url) return;
+        // Variables de estado
+        let currentTab = 'text';
+        let currentData = null;
+        let finalAiData = { title: "", summary: "", formattedText: "" };
 
-            estado.className = '';
-            estado.innerText = 'Extrayendo...';
-            resultado.value = '';
-            debugBox.value = '';
-            btn.disabled = true;
+        // Referencias del DOM
+        const form = document.getElementById('transcriptForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const loadingState = document.getElementById('loadingState');
+        const errorState = document.getElementById('errorState');
+        const errorMessage = document.getElementById('errorMessage');
+        const resultsContainer = document.getElementById('resultsContainer');
+        
+        // Referencias de IA
+        const aiLoadingState = document.getElementById('aiLoadingState');
+        const aiProgressText = document.getElementById('aiProgressText');
+        const aiProgressBar = document.getElementById('aiProgressBar');
+        const aiResults = document.getElementById('aiResults');
+        const aiTitle = document.getElementById('aiTitle');
+        const plainTextOutput = document.getElementById('plainTextOutput');
+        const aiSummary = document.getElementById('aiSummary');
+        const jsonOutput = document.getElementById('jsonOutput');
 
-            try {
-                const response = await fetch('/api/transcript', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url })
-                });
+        const GEMINI_API_KEY = ""; // Entorno inyecta la API Key
+        const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`;
 
-                const rawText = await response.text();
-                debugBox.value = rawText;
-
-                let data;
-                try { data = JSON.parse(rawText); } catch { data = null; }
-
-                if (response.ok && data?.transcript) {
-                    resultado.value = data.transcript;
-                    estado.className = 'ok';
-                    estado.innerText = `Completado — ${data.transcript.split(' ').length} palabras`;
-                } else {
-                    estado.className = 'error';
-                    estado.innerText = data?.error ?? `Error ${response.status}`;
+        // Llamada genérica con reintentos para no fallar por rate limits temporales
+        async function fetchWithRetry(url, options, retries = 5) {
+            const delays = [1000, 2000, 4000, 8000, 16000];
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const res = await fetch(url, options);
+                    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                    return res;
+                } catch (err) {
+                    if (i === retries - 1) throw err;
+                    await new Promise(resolve => setTimeout(resolve, delays[i]));
                 }
-            } catch (error) {
-                estado.className = 'error';
-                estado.innerText = 'Error de conexión con la API';
-                debugBox.value = error.toString();
-            } finally {
-                btn.disabled = false;
             }
         }
 
-        function copiar(id) {
-            const el = document.getElementById(id);
-            navigator.clipboard.writeText(el.value);
+        // DIVISIÓN DEL TEXTO EN BLOQUES (CHUNKS)
+        function chunkText(text, maxChars = 4000) {
+            const words = text.split(' ');
+            const chunks = [];
+            let currentChunk = '';
+
+            for (let word of words) {
+                if ((currentChunk.length + word.length + 1) > maxChars) {
+                    chunks.push(currentChunk.trim());
+                    currentChunk = word + ' ';
+                } else {
+                    currentChunk += word + ' ';
+                }
+            }
+            if (currentChunk.trim().length > 0) {
+                chunks.push(currentChunk.trim());
+            }
+            return chunks;
         }
 
-        document.getElementById('videoUrl').addEventListener('keydown', e => {
-            if (e.key === 'Enter') obtenerTexto();
+        // LLAMADA IA 1: Formatear Párrafos (por bloque)
+        async function formatChunkWithAI(chunk) {
+            const prompt = `Tienes un bloque de una transcripción. Tu ÚNICA TAREA es devolver el mismo texto exacto, pero añadiendo saltos de línea dobles (\\n\\n) donde lógicamente termine un párrafo o idea. 
+REGLAS ESTRICTAS:
+- NO resumas.
+- NO cambies ni omitas ninguna palabra original.
+- NO corrijas la gramática.
+- Simplemente devuelve el texto con saltos de párrafo para que sea más fácil de leer.
+
+Texto:
+${chunk}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            formatted_chunk: { type: "STRING" }
+                        },
+                        required: ["formatted_chunk"]
+                    }
+                }
+            };
+
+            const response = await fetchWithRetry(GEMINI_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+            return JSON.parse(result.candidates[0].content.parts[0].text).formatted_chunk;
+        }
+
+        // LLAMADA IA 2: Generar Título y Resumen (final)
+        async function generateMetaWithAI(fullText) {
+            // Pasamos solo los primeros 8000 caracteres para el resumen para ahorrar tiempo, suele ser suficiente para el contexto.
+            const textContext = fullText.substring(0, 8000);
+            
+            const prompt = `Lee el siguiente texto (que puede ser el inicio de una transcripción más larga).
+Genera:
+1. Un título descriptivo.
+2. Un resumen breve y estructurado (puede ser un párrafo corto o viñetas) destacando los puntos principales.
+
+Texto:
+${textContext}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            title: { type: "STRING" },
+                            summary: { type: "STRING" }
+                        },
+                        required: ["title", "summary"]
+                    }
+                }
+            };
+
+            const response = await fetchWithRetry(GEMINI_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+            return JSON.parse(result.candidates[0].content.parts[0].text);
+        }
+
+        // Flujo principal al enviar formulario
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const url = document.getElementById('youtubeUrl').value.trim();
+
+            if (!apiKey || !url) return;
+
+            errorState.classList.add('hidden');
+            resultsContainer.classList.add('hidden');
+            loadingState.classList.remove('hidden');
+            loadingState.classList.add('flex');
+            submitBtn.disabled = true;
+
+            try {
+                // 1. Obtener Transcripción de Supadata
+                const response = await fetch(`https://api.supadata.ai/v1/youtube/transcript?url=${encodeURIComponent(url)}`, {
+                    method: 'GET',
+                    headers: { 'x-api-key': apiKey, 'Accept': 'application/json' }
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.message || `Error HTTP: ${response.status}`);
+                }
+
+                const data = await response.json();
+                currentData = data;
+                
+                await processAndRender(data);
+
+            } catch (error) {
+                errorMessage.textContent = error.message;
+                errorState.classList.remove('hidden');
+                loadingState.classList.add('hidden');
+                loadingState.classList.remove('flex');
+                submitBtn.disabled = false;
+            }
         });
+
+        // Orquestador de la IA
+        async function processAndRender(data) {
+            jsonOutput.textContent = JSON.stringify(data, null, 2);
+            resultsContainer.classList.remove('hidden');
+            
+            loadingState.classList.add('hidden');
+            loadingState.classList.remove('flex');
+
+            // Preparar Texto Base
+            let rawText = "";
+            const transcriptArray = Array.isArray(data) ? data : (data.transcript || data.data || data.content);
+
+            if (Array.isArray(transcriptArray)) {
+                rawText = transcriptArray.map(segment => segment.text || segment.content || "").join(" ");
+            } else if (typeof data === 'string') {
+                rawText = data;
+            } else if (data.text) {
+                rawText = data.text;
+            }
+
+            if (!rawText || rawText.length < 20) {
+                showRawFallback(rawText, "Texto demasiado corto o no encontrado.");
+                return;
+            }
+
+            // Iniciar UI de IA
+            aiResults.classList.add('hidden');
+            aiLoadingState.classList.remove('hidden');
+            aiLoadingState.classList.add('flex');
+            
+            try {
+                // Paso 1: Dividir en bloques
+                const chunks = chunkText(rawText, 3500); 
+                let assembledFormattedText = "";
+
+                // Paso 2: Procesar secuencialmente para no abrumar la API
+                for (let i = 0; i < chunks.length; i++) {
+                    const percentage = Math.round(((i) / chunks.length) * 100);
+                    aiProgressText.textContent = `Estructurando bloque ${i + 1} de ${chunks.length}...`;
+                    aiProgressBar.style.width = `${percentage}%`;
+
+                    const formattedChunk = await formatChunkWithAI(chunks[i]);
+                    assembledFormattedText += formattedChunk + "\n\n";
+                }
+
+                aiProgressText.textContent = `Generando título y resumen final...`;
+                aiProgressBar.style.width = `90%`;
+
+                // Paso 3: Obtener Meta Data
+                const metaData = await generateMetaWithAI(assembledFormattedText);
+                
+                aiProgressBar.style.width = `100%`;
+
+                // Renderizar
+                finalAiData = {
+                    title: metaData.title,
+                    summary: metaData.summary,
+                    formattedText: assembledFormattedText.trim()
+                };
+
+                aiTitle.textContent = finalAiData.title;
+                plainTextOutput.textContent = finalAiData.formattedText;
+                aiSummary.textContent = finalAiData.summary;
+
+            } catch (aiError) {
+                console.error("Error en IA Chunking:", aiError);
+                showRawFallback(rawText, "Ocurrió un error al procesar el texto largo con IA. Mostrando versión cruda.");
+            } finally {
+                aiLoadingState.classList.add('hidden');
+                aiLoadingState.classList.remove('flex');
+                aiResults.classList.remove('hidden');
+                submitBtn.disabled = false;
+                lucide.createIcons();
+            }
+        }
+
+        function showRawFallback(text, message) {
+            aiTitle.textContent = "Transcripción Original";
+            plainTextOutput.textContent = text;
+            aiSummary.textContent = message;
+            finalAiData = { title: "Transcripción", summary: message, formattedText: text };
+            aiLoadingState.classList.add('hidden');
+            aiLoadingState.classList.remove('flex');
+            aiResults.classList.remove('hidden');
+            submitBtn.disabled = false;
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            const btnText = document.getElementById('tab-text');
+            const btnJson = document.getElementById('tab-json');
+            const contentText = document.getElementById('content-text');
+            const contentJson = document.getElementById('content-json');
+
+            if (tab === 'text') {
+                btnText.className = "flex-1 py-3 px-4 text-sm font-semibold border-b-2 border-blue-700 text-blue-700 transition-colors flex items-center justify-center gap-2";
+                btnJson.className = "flex-1 py-3 px-4 text-sm font-semibold border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-200 transition-colors flex items-center justify-center gap-2";
+                contentText.classList.remove('hidden'); contentText.classList.add('block');
+                contentJson.classList.remove('block'); contentJson.classList.add('hidden');
+            } else {
+                btnJson.className = "flex-1 py-3 px-4 text-sm font-semibold border-b-2 border-blue-700 text-blue-700 transition-colors flex items-center justify-center gap-2";
+                btnText.className = "flex-1 py-3 px-4 text-sm font-semibold border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-200 transition-colors flex items-center justify-center gap-2";
+                contentJson.classList.remove('hidden'); contentJson.classList.add('block');
+                contentText.classList.remove('block'); contentText.classList.add('hidden');
+            }
+        }
+
+        function copyContent() {
+            if (!currentData) return;
+            const textToCopy = currentTab === 'text' ? finalAiData.formattedText : jsonOutput.textContent;
+            const textarea = document.createElement('textarea');
+            textarea.value = textToCopy;
+            document.body.appendChild(textarea);
+            textarea.select();
+            try { document.execCommand('copy'); showToast("¡Copiado al portapapeles!"); } 
+            catch (err) { console.error('Error', err); } 
+            finally { document.body.removeChild(textarea); }
+        }
+
+        function downloadContent() {
+            if (!currentData) return;
+            let contentToDownload = "", fileName = "", mimeType = "text/plain";
+            const safeTitle = (finalAiData.title || "transcripcion").replace(/[^a-z0-9]/gi, '_').toLowerCase();
+
+            if (currentTab === 'text') {
+                contentToDownload = `${finalAiData.title}\n\n${finalAiData.formattedText}\n\n--- RESUMEN ---\n${finalAiData.summary}`;
+                fileName = `${safeTitle}.txt`;
+            } else {
+                contentToDownload = jsonOutput.textContent;
+                fileName = `${safeTitle}.json`;
+                mimeType = "application/json";
+            }
+
+            const blob = new Blob([contentToDownload], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = fileName;
+            document.body.appendChild(a); a.click();
+            document.body.removeChild(a); URL.revokeObjectURL(url);
+            showToast("¡Archivo descargado!");
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.querySelector('span').textContent = message;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 3000);
+        }
     </script>
 </body>
 </html>
