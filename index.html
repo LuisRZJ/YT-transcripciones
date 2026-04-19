@@ -18,16 +18,45 @@
         ::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 4px; }
         ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        /* Ticker CSS para títulos largos */
+        .marquee-container {
+            overflow: hidden;
+            position: relative;
+            width: 100%;
+            white-space: nowrap;
+            mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+            -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+        }
+        .marquee-content {
+            display: inline-block;
+            animation: marquee 16s linear infinite;
+        }
+        .marquee-container:hover .marquee-content {
+            animation-play-state: paused;
+        }
+        @keyframes marquee {
+            0% { transform: translateX(0%); }
+            100% { transform: translateX(-50%); }
+        }
     </style>
 </head>
 <body class="bg-slate-200 min-h-screen font-sans text-slate-900">
 
     <div class="max-w-4xl mx-auto p-6 pt-12">
         <!-- Header -->
-        <header class="mb-10 text-center">
+        <header class="mb-10 text-center relative">
+            <div class="absolute right-0 top-0 flex gap-2">
+                <button onclick="openHistoryModal()" class="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-200 rounded-full transition-colors" title="Historial / Biblioteca">
+                    <i data-lucide="library" class="w-6 h-6"></i>
+                </button>
+                <button onclick="openSettingsModal()" class="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-200 rounded-full transition-colors" title="Ajustes de API">
+                    <i data-lucide="settings" class="w-6 h-6"></i>
+                </button>
+            </div>
             <h1 class="text-3xl font-bold text-slate-900 flex items-center justify-center gap-3">
                 <i data-lucide="youtube" class="text-red-600 w-8 h-8"></i>
-                Extractor de Transcripciones (IA + Bloques)
+                Extractor de Transcripciones
             </h1>
             <p class="text-slate-700 mt-2">Extrae y estructura videos largos de forma segura usando chunking.</p>
         </header>
@@ -35,19 +64,6 @@
         <!-- Panel de Configuración e Input -->
         <div class="bg-white rounded-xl shadow-md border border-slate-300 p-6 mb-8">
             <form id="transcriptForm" class="space-y-5">
-                <!-- API Key Input -->
-                <div>
-                    <label for="apiKey" class="block text-sm font-semibold text-slate-800 mb-1">Supadata API Key</label>
-                    <div class="relative">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <i data-lucide="key" class="text-slate-500 w-5 h-5"></i>
-                        </div>
-                        <input type="password" id="apiKey" required
-                            class="block w-full pl-10 pr-3 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all text-sm"
-                            placeholder="Pega tu API Key aquí (no se guardará en ningún servidor)">
-                    </div>
-                </div>
-
                 <!-- YouTube URL Input -->
                 <div>
                     <label for="youtubeUrl" class="block text-sm font-semibold text-slate-800 mb-1">URL del Video de YouTube</label>
@@ -100,7 +116,10 @@
 
             <div class="p-4 relative group">
                 <!-- Botones de Acción -->
-                <div class="absolute top-6 right-6 flex gap-2 z-10">
+                <div id="actionButtonsGroup" class="hidden absolute top-6 right-6 flex gap-2 z-10">
+                    <button onclick="saveTranscript()" class="p-2 bg-white border border-slate-300 rounded-md shadow-sm text-slate-700 hover:text-blue-700 hover:bg-blue-50 transition-colors" title="Guardar en historial (Manual)">
+                        <i data-lucide="bookmark-plus" class="w-4 h-4"></i>
+                    </button>
                     <button onclick="downloadContent()" class="p-2 bg-white border border-slate-300 rounded-md shadow-sm text-slate-700 hover:text-blue-700 hover:bg-blue-50 transition-colors" title="Descargar archivo">
                         <i data-lucide="download" class="w-4 h-4"></i>
                     </button>
@@ -124,7 +143,7 @@
                     
                     <!-- Resultados IA -->
                     <div id="aiResults" class="hidden">
-                        <h2 id="aiTitle" class="text-xl font-bold text-slate-900 mb-4 pr-24"></h2>
+                        <h2 id="aiTitle" class="text-xl font-bold text-slate-900 mb-4 pr-40 leading-snug"></h2>
                         <div id="plainTextOutput" class="p-5 bg-slate-100 border border-slate-300 rounded-lg text-slate-800 text-sm leading-relaxed whitespace-pre-wrap max-h-[400px] overflow-y-auto mb-4 font-sans">
                         </div>
                         <div class="bg-blue-100 border border-blue-300 rounded-lg p-4">
@@ -139,6 +158,101 @@
                 <!-- Contenido JSON -->
                 <div id="content-json" class="hidden">
                     <pre id="jsonOutput" class="p-4 bg-slate-900 rounded-lg text-green-400 text-sm leading-relaxed overflow-x-auto max-h-[500px] overflow-y-auto font-mono"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Ajustes -->
+    <div id="settingsModal" class="hidden fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 transform scale-95 transition-transform duration-300">
+            <div class="flex justify-between items-center mb-5">
+                <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                    <i data-lucide="settings" class="w-5 h-5 text-slate-600"></i> Ajustes
+                </h2>
+                <button type="button" onclick="closeSettingsModal()" class="text-slate-400 hover:text-slate-600 transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            
+            <div class="mb-4">
+                <label for="modalApiKey" class="block text-sm font-semibold text-slate-800 mb-1">Supadata API Key</label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i data-lucide="key" class="text-slate-500 w-5 h-5"></i>
+                    </div>
+                    <input type="password" id="modalApiKey" 
+                        class="block w-full pl-10 pr-3 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all text-sm"
+                        placeholder="Pega tu API Key aquí (ej. sp_...)">
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label for="modalOrApiKey" class="block text-sm font-semibold text-slate-800 mb-1">OpenRouter API Key</label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i data-lucide="key" class="text-slate-500 w-5 h-5"></i>
+                    </div>
+                    <input type="password" id="modalOrApiKey" 
+                        class="block w-full pl-10 pr-3 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all text-sm"
+                        placeholder="Pega tu OpenRouter Key aquí">
+                </div>
+                <p class="text-xs text-slate-500 mt-2">Ambas claves de IA se guardan localmente en tu navegador.</p>
+            </div>
+
+            <div class="mb-6 border-t border-slate-200 pt-5">
+                <label for="modalSyncSecret" class="block text-sm font-bold text-slate-800 mb-1">🔐 Cloud Sync Secret (Vercel API)</label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i data-lucide="lock" class="text-slate-500 w-5 h-5"></i>
+                    </div>
+                    <input type="password" id="modalSyncSecret" 
+                        class="block w-full pl-10 pr-3 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all text-sm"
+                        placeholder="Contraseña Vercel (Solo necesaria para Backup Nube)">
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between">
+                <button type="button" onclick="deleteApiKey()" class="text-red-600 hover:text-red-800 text-sm font-medium px-3 py-2 rounded-lg hover:bg-red-50 transition-colors flex items-center gap-1">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i> Borrar Clave
+                </button>
+                <div class="flex gap-2">
+                    <button type="button" onclick="closeSettingsModal()" class="px-4 py-2 text-slate-600 bg-slate-100 hover:bg-slate-200 font-medium rounded-lg transition-colors text-sm">
+                        Cancelar
+                    </button>
+                    <button type="button" onclick="saveApiKey()" class="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white font-medium rounded-lg transition-colors text-sm flex items-center gap-2">
+                        <i data-lucide="save" class="w-4 h-4"></i> Guardar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Historial -->
+    <div id="historyModal" class="hidden fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col transform scale-95 transition-transform duration-300">
+            <div class="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-xl shrink-0">
+                <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                    <i data-lucide="library" class="w-5 h-5 text-slate-600"></i> Mi Historial de Transcripciones
+                </h2>
+                <button type="button" onclick="closeHistoryModal()" class="text-slate-400 hover:text-slate-600 transition-colors p-1 bg-white border border-slate-200 rounded-full hover:bg-slate-100 shadow-sm">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            
+            <div id="historyListContainer" class="p-6 overflow-y-auto flex-1 bg-slate-100/50 flex flex-col gap-4">
+                <!-- Tarjetas generadas dinámicamente -->
+            </div>
+            
+            <div class="p-4 border-t border-slate-200 bg-white rounded-b-xl flex justify-between items-center shrink-0">
+                <span id="historyItemCount" class="text-sm font-medium text-slate-500">0 transcripciones guardadas</span>
+                <div class="flex gap-2">
+                    <button type="button" id="btnSyncCloud" onclick="triggerSmartSync()" class="px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold rounded-lg transition-colors text-sm flex items-center gap-2 border border-blue-200" title="Sincronizar hacia y desde la Nube">
+                        <i id="iconSync" data-lucide="cloud-snow" class="w-5 h-5"></i> <span id="txtSync">Smart Sync</span>
+                    </button>
+                    <button type="button" onclick="closeHistoryModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-medium rounded-lg transition-colors text-sm">
+                        Cerrar
+                    </button>
                 </div>
             </div>
         </div>
@@ -177,8 +291,24 @@
         const aiSummary = document.getElementById('aiSummary');
         const jsonOutput = document.getElementById('jsonOutput');
 
-        const GEMINI_API_KEY = ""; // Entorno inyecta la API Key
-        const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`;
+        // Variable global para saltar la validación si el usuario forza la petición
+        let forceNextFetch = false;
+
+        function extractVideoId(url) {
+            try {
+                const urlObj = new URL(url);
+                if (urlObj.hostname === 'youtu.be') {
+                    return urlObj.pathname.slice(1);
+                } else if (urlObj.hostname.includes('youtube.com')) {
+                    if (urlObj.pathname === '/watch') {
+                        return urlObj.searchParams.get('v');
+                    } else if (urlObj.pathname.startsWith('/embed/')) {
+                        return urlObj.pathname.split('/')[2];
+                    }
+                }
+            } catch (e) {}
+            return null;
+        }
 
         // Llamada genérica con reintentos para no fallar por rate limits temporales
         async function fetchWithRetry(url, options, retries = 5) {
@@ -216,43 +346,43 @@
         }
 
         // LLAMADA IA 1: Formatear Párrafos (por bloque)
-        async function formatChunkWithAI(chunk) {
+        async function formatChunkWithAI(chunk, openRouterKey) {
             const prompt = `Tienes un bloque de una transcripción. Tu ÚNICA TAREA es devolver el mismo texto exacto, pero añadiendo saltos de línea dobles (\\n\\n) donde lógicamente termine un párrafo o idea. 
 REGLAS ESTRICTAS:
 - NO resumas.
 - NO cambies ni omitas ninguna palabra original.
 - NO corrijas la gramática.
-- Simplemente devuelve el texto con saltos de párrafo para que sea más fácil de leer.
+- Simplemente devuelve el texto puro formateado con saltos de párrafo para que sea más fácil de leer, sin ningún comentario adicional ni saludos.
 
 Texto:
 ${chunk}`;
 
             const payload = {
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: "OBJECT",
-                        properties: {
-                            formatted_chunk: { type: "STRING" }
-                        },
-                        required: ["formatted_chunk"]
-                    }
-                }
+                model: "deepseek/deepseek-v3.2",
+                messages: [
+                    { role: "system", content: "Eres un experto formateando transcripciones. Devuelve unicamente lo que se pide, sin markdown extra." },
+                    { role: "user", content: prompt }
+                ]
             };
 
-            const response = await fetchWithRetry(GEMINI_URL, {
+            const response = await fetchWithRetry("https://openrouter.ai/api/v1/chat/completions", {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${openRouterKey}`,
+                    'HTTP-Referer': window.location.href,
+                    'X-Title': 'Extractor YT'
+                },
                 body: JSON.stringify(payload)
             });
 
             const result = await response.json();
-            return JSON.parse(result.candidates[0].content.parts[0].text).formatted_chunk;
+            if (result.error) throw new Error(result.error.message || "Error en OpenRouter API");
+            return result.choices[0].message.content.trim();
         }
 
         // LLAMADA IA 2: Generar Título y Resumen (final)
-        async function generateMetaWithAI(fullText) {
+        async function generateMetaWithAI(fullText, openRouterKey) {
             // Pasamos solo los primeros 8000 caracteres para el resumen para ahorrar tiempo, suele ser suficiente para el contexto.
             const textContext = fullText.substring(0, 8000);
             
@@ -261,42 +391,98 @@ Genera:
 1. Un título descriptivo.
 2. Un resumen breve y estructurado (puede ser un párrafo corto o viñetas) destacando los puntos principales.
 
+IMPORTANTE: Devuelve ÚNICAMENTE un objeto JSON válido con la siguiente estructura, sin formato markdown ni texto adicional:
+{
+  "title": "tu título aquí",
+  "summary": "tu resumen aquí"
+}
+
 Texto:
 ${textContext}`;
 
             const payload = {
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: "OBJECT",
-                        properties: {
-                            title: { type: "STRING" },
-                            summary: { type: "STRING" }
-                        },
-                        required: ["title", "summary"]
-                    }
-                }
+                model: "deepseek/deepseek-v3.2",
+                messages: [
+                    { role: "user", content: prompt }
+                ]
             };
 
-            const response = await fetchWithRetry(GEMINI_URL, {
+            const response = await fetchWithRetry("https://openrouter.ai/api/v1/chat/completions", {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${openRouterKey}`,
+                    'HTTP-Referer': window.location.href,
+                    'X-Title': 'Extractor YT'
+                },
                 body: JSON.stringify(payload)
             });
 
             const result = await response.json();
-            return JSON.parse(result.candidates[0].content.parts[0].text);
+            if (result.error) throw new Error(result.error.message || "Error en OpenRouter API");
+            
+            let jsonString = result.choices[0].message.content.trim();
+            // Limpiar posibles bloques de markdown generados por accidente
+            jsonString = jsonString.replace(/```json/gi, '').replace(/```/g, '').trim();
+            
+            return JSON.parse(jsonString);
         }
 
         // Flujo principal al enviar formulario
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const apiKey = document.getElementById('apiKey').value.trim();
+            const apiKey = localStorage.getItem('supadata_api_key');
+            const openRouterKey = localStorage.getItem('openrouter_api_key');
+            
+            if (!apiKey || !openRouterKey) {
+                openSettingsModal();
+                showToast("Por favor, configura tus API Keys primero.");
+                return;
+            }
+
             const url = document.getElementById('youtubeUrl').value.trim();
 
-            if (!apiKey || !url) return;
+            if (!url) return;
+
+            // Validación de URL de YouTube y Extracción de Video ID
+            const videoId = extractVideoId(url);
+
+            if (!videoId) {
+                errorMessage.textContent = "Por favor ingresa una URL válida de YouTube (ej. https://youtu.be/... o https://youtube.com/watch?v=...).";
+                errorState.classList.remove('hidden');
+                resultsContainer.classList.add('hidden');
+                loadingState.classList.add('hidden');
+                loadingState.classList.remove('flex');
+                return;
+            }
+
+            // Detección de duplicado en Historial
+            if (!forceNextFetch) {
+                const history = getHistory();
+                const existing = history.find(h => h.videoId === videoId);
+                
+                if (existing) {
+                    errorMessage.innerHTML = `Esta transcripción ya se encuentra en tu biblioteca local.<br><br>
+                        <div class="flex gap-2 mt-3">
+                            <button type="button" onclick="loadFromHistory(${existing.id})" class="px-3 py-1.5 bg-blue-100 text-blue-800 hover:bg-blue-200 font-semibold text-sm rounded shadow-sm transition-colors border border-blue-200">
+                                Abrir desde Biblioteca
+                            </button>
+                            <button type="button" onclick="executeForceFetch()" class="px-3 py-1.5 bg-red-100 text-red-800 hover:bg-red-200 font-semibold text-sm rounded shadow-sm transition-colors border border-red-200">
+                                Re-analizar (Sobreescribir)
+                            </button>
+                        </div>
+                    `;
+                    errorState.classList.remove('hidden');
+                    resultsContainer.classList.add('hidden');
+                    loadingState.classList.add('hidden');
+                    loadingState.classList.remove('flex');
+                    return;
+                }
+            }
+            
+            // Reiniciar la variable de forzado
+            forceNextFetch = false;
 
             errorState.classList.add('hidden');
             resultsContainer.classList.add('hidden');
@@ -360,6 +546,11 @@ ${textContext}`;
             aiLoadingState.classList.remove('hidden');
             aiLoadingState.classList.add('flex');
             
+            // Ocultar botones de acción hasta que esté listo
+            document.getElementById('actionButtonsGroup').classList.add('hidden');
+            
+            const openRouterKey = localStorage.getItem('openrouter_api_key');
+            
             try {
                 // Paso 1: Dividir en bloques
                 const chunks = chunkText(rawText, 3500); 
@@ -371,7 +562,7 @@ ${textContext}`;
                     aiProgressText.textContent = `Estructurando bloque ${i + 1} de ${chunks.length}...`;
                     aiProgressBar.style.width = `${percentage}%`;
 
-                    const formattedChunk = await formatChunkWithAI(chunks[i]);
+                    const formattedChunk = await formatChunkWithAI(chunks[i], openRouterKey);
                     assembledFormattedText += formattedChunk + "\n\n";
                 }
 
@@ -379,7 +570,7 @@ ${textContext}`;
                 aiProgressBar.style.width = `90%`;
 
                 // Paso 3: Obtener Meta Data
-                const metaData = await generateMetaWithAI(assembledFormattedText);
+                const metaData = await generateMetaWithAI(assembledFormattedText, openRouterKey);
                 
                 aiProgressBar.style.width = `100%`;
 
@@ -401,6 +592,7 @@ ${textContext}`;
                 aiLoadingState.classList.add('hidden');
                 aiLoadingState.classList.remove('flex');
                 aiResults.classList.remove('hidden');
+                document.getElementById('actionButtonsGroup').classList.remove('hidden');
                 submitBtn.disabled = false;
                 lucide.createIcons();
             }
@@ -414,6 +606,7 @@ ${textContext}`;
             aiLoadingState.classList.add('hidden');
             aiLoadingState.classList.remove('flex');
             aiResults.classList.remove('hidden');
+            document.getElementById('actionButtonsGroup').classList.remove('hidden');
             submitBtn.disabled = false;
         }
 
@@ -477,6 +670,391 @@ ${textContext}`;
             toast.querySelector('span').textContent = message;
             toast.classList.remove('translate-y-20', 'opacity-0');
             setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 3000);
+        }
+
+        // Lógica del Modal y LocalStorage
+        function openSettingsModal() {
+            const modal = document.getElementById('settingsModal');
+            const inputSd = document.getElementById('modalApiKey');
+            const inputOr = document.getElementById('modalOrApiKey');
+            const inputSy = document.getElementById('modalSyncSecret');
+            
+            const savedSdKey = localStorage.getItem('supadata_api_key');
+            const savedOrKey = localStorage.getItem('openrouter_api_key');
+            const savedSyKey = localStorage.getItem('vercel_sync_secret');
+            
+            inputSd.value = savedSdKey || '';
+            inputOr.value = savedOrKey || '';
+            inputSy.value = savedSyKey || '';
+            
+            modal.classList.remove('hidden');
+            // Timeout para permitir la transición de opacidad
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modal.querySelector('div').classList.remove('scale-95');
+            }, 10);
+        }
+
+        function closeSettingsModal() {
+            const modal = document.getElementById('settingsModal');
+            modal.classList.add('opacity-0');
+            modal.querySelector('div').classList.add('scale-95');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        function saveApiKey() {
+            const inputSd = document.getElementById('modalApiKey').value.trim();
+            const inputOr = document.getElementById('modalOrApiKey').value.trim();
+            const inputSy = document.getElementById('modalSyncSecret').value.trim();
+            
+            if (inputSd && inputOr) {
+                localStorage.setItem('supadata_api_key', inputSd);
+                localStorage.setItem('openrouter_api_key', inputOr);
+                if (inputSy) {
+                    localStorage.setItem('vercel_sync_secret', inputSy);
+                }
+                closeSettingsModal();
+                showToast("Credenciales guardadas correctamente.");
+            } else {
+                showToast("Por favor ingresa ambas claves de IA.");
+            }
+        }
+
+        function deleteApiKey() {
+            localStorage.removeItem('supadata_api_key');
+            localStorage.removeItem('openrouter_api_key');
+            localStorage.removeItem('vercel_sync_secret');
+            document.getElementById('modalApiKey').value = '';
+            document.getElementById('modalOrApiKey').value = '';
+            document.getElementById('modalSyncSecret').value = '';
+            showToast("Claves y secretos borrados.");
+        }
+
+        // ----------------------------------------
+        // HISTORIAL LOCAL
+        // ----------------------------------------
+
+        function openHistoryModal() {
+            const modal = document.getElementById('historyModal');
+            renderHistoryList();
+            
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modal.querySelector('div').classList.remove('scale-95');
+            }, 10);
+        }
+
+        function closeHistoryModal() {
+            const modal = document.getElementById('historyModal');
+            modal.classList.add('opacity-0');
+            modal.querySelector('div').classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        function getHistory() {
+            return JSON.parse(localStorage.getItem('saved_transcripts_history') || '[]');
+        }
+
+        function saveHistory(historyArray) {
+            try {
+                localStorage.setItem('saved_transcripts_history', JSON.stringify(historyArray));
+            } catch (err) {
+                showToast("Error: No hay suficiente espacio en el navegador para guardar.");
+                throw err;
+            }
+        }
+
+        function executeForceFetch() {
+            forceNextFetch = true;
+            document.getElementById('submitBtn').click();
+        }
+
+        function saveTranscript() {
+            if (!currentData || !finalAiData.formattedText) {
+                showToast("No hay una transcipción generada para guardar.");
+                return;
+            }
+
+            const currentUrl = document.getElementById('youtubeUrl').value.trim();
+            const videoId = extractVideoId(currentUrl) || "unknown";
+
+            const history = getHistory();
+            const newItem = {
+                id: Date.now(),
+                date: new Date().toLocaleString(),
+                title: finalAiData.title || "Sin Título",
+                summary: finalAiData.summary || "",
+                formattedText: finalAiData.formattedText,
+                jsonData: currentData, // Datos originales reusables
+                videoId: videoId,
+                synced: false // Marca para la base de datos de la nube
+            };
+
+
+            // Prevenir duplicados basados en videoId EXACTO si existe.
+            if (videoId !== "unknown") {
+                const existingIndex = history.findIndex(h => h.videoId === videoId);
+                if (existingIndex !== -1) {
+                    // Si ya existe, lo "Sobreescribimos"
+                    history.splice(existingIndex, 1);
+                }
+            } else {
+                // Prevenir duplicados (fallback anterior)
+                const exists = history.find(h => h.formattedText.length === newItem.formattedText.length && h.title === newItem.title);
+                if (exists) {
+                    showToast("Esta transcripción ya está guardada en tu historial.");
+                    return;
+                }
+            }
+
+            history.unshift(newItem); // Añadir al principio
+            
+            try {
+                saveHistory(history);
+                showToast("¡Transcripción guardada en el historial!");
+            } catch (e) {
+                // error handled in saveHistory
+            }
+        }
+
+        function renderHistoryList() {
+            const container = document.getElementById('historyListContainer');
+            const countLabel = document.getElementById('historyItemCount');
+            const history = getHistory();
+            
+            countLabel.textContent = `${history.length} transcripciones guardadas`;
+            
+            if (history.length === 0) {
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center text-slate-500 py-10 h-full">
+                        <i data-lucide="inbox" class="w-12 h-12 mb-3 text-slate-300"></i>
+                        <p class="font-medium">No hay transcripciones guardadas.</p>
+                        <p class="text-sm mt-1">Usa el ícono de guardado en la esquina al extraer una.</p>
+                    </div>`;
+                lucide.createIcons();
+                return;
+            }
+
+            container.innerHTML = history.map(item => `
+                <div class="bg-white border text-left border-slate-300 rounded-lg p-5 shadow-sm hover:shadow transition-shadow flex flex-col md:flex-row gap-5 justify-between items-start md:items-center overflow-hidden">
+                    <div class="flex-1 min-w-0" style="max-width: 100%;">
+                        <div class="marquee-container mb-1.5" title="${item.title}">
+                            <div class="marquee-content font-bold text-slate-800 text-lg">
+                                <span class="pr-12">${item.title}</span><span class="pr-12">${item.title}</span>
+                            </div>
+                        </div>
+                        <p class="text-xs text-slate-500 flex items-center gap-1.5 font-medium mb-3">
+                            <i data-lucide="clock" class="w-3.5 h-3.5"></i> Capturada: ${item.date}
+                        </p>
+                        <p class="text-sm text-slate-600 line-clamp-2 leading-relaxed bg-slate-50 p-2 rounded border border-slate-100">${item.summary || "Sin resumen."}</p>
+                    </div>
+                    <div class="flex flex-wrap md:flex-col gap-2 shrink-0 self-stretch md:self-auto justify-end md:justify-start pt-3 md:pt-0 border-t md:border-t-0 border-slate-100 mt-2 md:mt-0 md:w-36">
+                        <button type="button" onclick="loadFromHistory(${item.id})" class="flex-1 md:flex-none px-3 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 font-semibold text-sm rounded transition-colors flex items-center justify-center gap-1.5" title="Cargar y ver">
+                            <i data-lucide="external-link" class="w-4 h-4"></i> Cargar
+                        </button>
+                        <button type="button" onclick="downloadFromHistory(${item.id})" class="flex-1 md:flex-none px-3 py-2 bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200 font-semibold text-sm rounded transition-colors flex items-center justify-center gap-1.5" title="Descargar como .txt">
+                            <i data-lucide="download" class="w-4 h-4"></i> Descargar
+                        </button>
+                        <button type="button" onclick="deleteFromHistory(${item.id})" class="flex-none px-3 py-2 bg-red-50 text-red-600 hover:bg-red-100 font-semibold text-sm rounded transition-colors flex items-center justify-center gap-1.5" title="Eliminar del historial">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+            
+            // Re-render icons for dynamically added HTML
+            lucide.createIcons();
+        }
+
+        function loadFromHistory(id) {
+            const history = getHistory();
+            const item = history.find(h => h.id === id);
+            if (!item) return;
+
+            // Rellenar variables globales
+            currentData = item.jsonData;
+            finalAiData = {
+                title: item.title,
+                summary: item.summary,
+                formattedText: item.formattedText
+            };
+
+            // Asegurarnos de estar en la primera pestaña
+            switchTab('text');
+
+            // Actualizar DOM
+            jsonOutput.textContent = JSON.stringify(currentData, null, 2);
+            aiTitle.textContent = finalAiData.title;
+            plainTextOutput.textContent = finalAiData.formattedText;
+            aiSummary.textContent = finalAiData.summary;
+
+            // Ajustar UI
+            errorState.classList.add('hidden');
+            if (item.videoId && item.videoId !== "unknown") {
+                document.getElementById('youtubeUrl').value = `https://youtu.be/${item.videoId}`;
+            }
+            
+            loadingState.classList.add('hidden');
+            loadingState.classList.remove('flex');
+            
+            aiLoadingState.classList.add('hidden');
+            aiLoadingState.classList.remove('flex');
+            
+            aiResults.classList.remove('hidden');
+            resultsContainer.classList.remove('hidden');
+            document.getElementById('actionButtonsGroup').classList.remove('hidden');
+
+            closeHistoryModal();
+            showToast("Transcipción cargada desde el historial.");
+            
+            // Ir hasta arriba (opcional pero ayuda ux)
+            setTimeout(() => {
+                document.getElementById('resultsContainer').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+        }
+
+        function deleteFromHistory(id) {
+            if (!confirm("¿Seguro que deseas eliminar el registro de esta transcripción?")) return;
+            const history = getHistory();
+            const newHistory = history.filter(h => h.id !== id);
+            saveHistory(newHistory);
+            renderHistoryList();
+            showToast("Transcipción eliminada.");
+        }
+
+        function downloadFromHistory(id) {
+            const history = getHistory();
+            const item = history.find(h => h.id === id);
+            if (!item) return;
+
+            const safeTitle = (item.title || "transcripcion").replace(/[^a-z0-9]/gi, '_').toLowerCase();
+            const content = `${item.title}\n\nFecha guardado: ${item.date}\n\n${item.formattedText}\n\n--- RESUMEN ---\n${item.summary}`;
+            
+            const blob = new Blob([content], { type: "text/plain" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = `${safeTitle}_history.txt`;
+            document.body.appendChild(a); a.click();
+            document.body.removeChild(a); URL.revokeObjectURL(url);
+            
+            showToast("¡Archivo de historial descargado!");
+        }
+
+        // ----------------------------------------
+        // SMART CLOUD SYNC (Vercel + GitHub)
+        // ----------------------------------------
+
+        async function triggerSmartSync() {
+            const syncSecret = localStorage.getItem('vercel_sync_secret');
+            if (!syncSecret) {
+                showToast("Falta el Secret de Vercel. Configúralo en el panel de Ajustes.");
+                return;
+            }
+
+            const btn = document.getElementById('btnSyncCloud');
+            const icon = document.getElementById('iconSync');
+            const txt = document.getElementById('txtSync');
+
+            const setUiState = (message, isSpinning = true) => {
+                txt.textContent = message;
+                btn.disabled = isSpinning;
+                if (isSpinning) {
+                    icon.classList.add('animate-spin');
+                    icon.setAttribute('data-lucide', 'loader-2');
+                } else {
+                    icon.classList.remove('animate-spin');
+                    icon.setAttribute('data-lucide', 'cloud-snow');
+                }
+                lucide.createIcons();
+            };
+
+            setUiState("Conectando nube...");
+            const localHistory = getHistory();
+
+            try {
+                // 1. PULL: Listar los archivos disponibles en la nube
+                setUiState("Listando...");
+                const listRes = await fetch('/api/pull', {
+                    method: 'GET',
+                    headers: { 'Authorization': `Bearer ${syncSecret}` }
+                });
+                
+                if (!listRes.ok) throw new Error("Error obteniendo la lista de GitHub desde Vercel");
+                const listData = await listRes.json();
+                const cloudFiles = listData.fileIds || []; // Array de videoIds subidos previamente
+                
+                // 2. Resolver que bajamos de la Nube (Están en Cloud pero no Local)
+                const localVideoIds = localHistory.map(h => h.videoId);
+                const missingLocally = cloudFiles.filter(cloudId => !localVideoIds.includes(cloudId));
+                
+                if (missingLocally.length > 0) {
+                    setUiState(`Restaurando ${missingLocally.length} rec...`);
+                    for (const pullId of missingLocally) {
+                        try {
+                            const pullRes = await fetch(`/api/pull?id=${pullId}`, {
+                                headers: { 'Authorization': `Bearer ${syncSecret}` }
+                            });
+                            const pullData = await pullRes.json();
+                            if (pullData.data) {
+                                // Las descargadas por defecto ya están "synced: true" porque vienen de cloud
+                                pullData.data.synced = true; 
+                                localHistory.push(pullData.data);
+                            }
+                        } catch (e) {
+                            console.error(`Error bajando ${pullId}`, e);
+                        }
+                    }
+                    // Ordenamos de mas nuevo a mas viejo segun el ID (timestamp local) si no tienen ID se usa el del cloud
+                    localHistory.sort((a,b) => b.id - a.id);
+                    saveHistory(localHistory);
+                    renderHistoryList();
+                }
+
+                // 3. PUSH: Subir los que tenemos locales pero sin bandera de sync
+                const pendingPush = localHistory.filter(h => h.synced !== true && h.videoId !== "unknown");
+                
+                if (pendingPush.length > 0) {
+                    let uploadsCount = 0;
+                    for (const item of pendingPush) {
+                        uploadsCount++;
+                        setUiState(`Subiendo ${uploadsCount}/${pendingPush.length}...`);
+                        
+                        try {
+                            const pushRes = await fetch('/api/push', {
+                                method: 'POST',
+                                headers: { 
+                                    'Authorization': `Bearer ${syncSecret}`,
+                                    'Content-Type': 'application/json' 
+                                },
+                                body: JSON.stringify({ videoId: item.videoId, data: item })
+                            });
+                            
+                            if (pushRes.ok) {
+                                item.synced = true; // Marcar como enviado localmente
+                            }
+                        } catch (e) {
+                            console.error(`Error subiendo ${item.videoId}`, e);
+                        }
+                    }
+                    saveHistory(localHistory);
+                }
+
+                // FIN
+                setUiState("¡Sincronizado!", false);
+                showToast("Sincronización Inteligente de Vercel Nube exitosa.");
+                
+                // Retornar botón a estado normal tras 3 segundos
+                setTimeout(() => { setUiState("Smart Sync", false); }, 3000);
+
+            } catch (err) {
+                console.error("Fallo Smart Sync", err);
+                setUiState("Sync Falló", false);
+                showToast("Ocurrió un error en la sincronización.");
+            }
         }
     </script>
 </body>
