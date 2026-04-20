@@ -61,6 +61,23 @@
             <p class="text-slate-700 mt-2">Extrae y estructura videos largos de forma segura usando chunking.</p>
         </header>
 
+        <!-- Banner de Recuperación desde la Nube -->
+        <div id="cloudRecoveryBanner" class="hidden mb-8 bg-amber-50 border-2 border-amber-400 rounded-xl p-5 flex items-start gap-4">
+            <i data-lucide="cloud-download" class="w-8 h-8 text-amber-500 shrink-0 mt-0.5"></i>
+            <div class="flex-1">
+                <h3 class="font-bold text-amber-900 text-base">📦 Datos encontrados en la Nube</h3>
+                <p id="cloudRecoveryMsg" class="text-sm text-amber-800 mt-1 leading-relaxed"></p>
+                <div class="flex flex-wrap gap-2 mt-3">
+                    <button type="button" onclick="restoreFromCloud()" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-semibold text-sm rounded-lg transition-colors flex items-center gap-2">
+                        <i data-lucide="cloud-download" class="w-4 h-4"></i> Restaurar datos desde la Nube
+                    </button>
+                    <button type="button" onclick="dismissCloudRecoveryBanner()" class="px-4 py-2 bg-white hover:bg-amber-100 text-amber-700 font-medium text-sm rounded-lg transition-colors border border-amber-300">
+                        Ignorar por ahora
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Panel de Configuración e Input -->
         <div class="bg-white rounded-xl shadow-md border border-slate-300 p-6 mb-8">
             <form id="transcriptForm" class="space-y-5">
@@ -246,9 +263,14 @@
             
             <div class="p-4 border-t border-slate-200 bg-white rounded-b-xl flex justify-between items-center shrink-0">
                 <span id="historyItemCount" class="text-sm font-medium text-slate-500">0 transcripciones guardadas</span>
-                <div class="flex gap-2">
-                    <button type="button" id="btnSyncCloud" onclick="triggerSmartSync()" class="px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold rounded-lg transition-colors text-sm flex items-center gap-2 border border-blue-200" title="Sincronizar hacia y desde la Nube">
-                        <i id="iconSync" data-lucide="cloud-snow" class="w-5 h-5"></i> <span id="txtSync">Smart Sync</span>
+                <div class="flex gap-2 flex-wrap justify-end">
+                    <button type="button" id="btnBackupCloud" onclick="backupToCloud()" class="px-4 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold rounded-lg transition-colors text-sm flex items-center gap-2 border border-emerald-300" title="Subir transcripciones no respaldadas a la nube">
+                        <i id="iconBackup" data-lucide="cloud-upload" class="w-4 h-4"></i>
+                        <span id="txtBackup">Respaldar</span>
+                    </button>
+                    <button type="button" id="btnImportCloud" onclick="importFromCloud()" class="px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold rounded-lg transition-colors text-sm flex items-center gap-2 border border-blue-200" title="Verificar e importar datos desde la nube">
+                        <i id="iconImport" data-lucide="cloud-download" class="w-4 h-4"></i>
+                        <span id="txtImport">Importar desde Nube</span>
                     </button>
                     <button type="button" onclick="closeHistoryModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-medium rounded-lg transition-colors text-sm">
                         Cerrar
@@ -709,17 +731,24 @@ ${textContext}`;
             const inputSd = document.getElementById('modalApiKey').value.trim();
             const inputOr = document.getElementById('modalOrApiKey').value.trim();
             const inputSy = document.getElementById('modalSyncSecret').value.trim();
-            
-            if (inputSd && inputOr) {
-                localStorage.setItem('supadata_api_key', inputSd);
-                localStorage.setItem('openrouter_api_key', inputOr);
-                if (inputSy) {
-                    localStorage.setItem('vercel_sync_secret', inputSy);
-                }
-                closeSettingsModal();
-                showToast("Credenciales guardadas correctamente.");
-            } else {
-                showToast("Por favor ingresa ambas claves de IA.");
+
+            if (!inputSd && !inputOr && !inputSy) {
+                showToast("Por favor ingresa al menos una credencial.");
+                return;
+            }
+
+            const prevSyncSecret = localStorage.getItem('vercel_sync_secret');
+
+            if (inputSd) localStorage.setItem('supadata_api_key', inputSd);
+            if (inputOr) localStorage.setItem('openrouter_api_key', inputOr);
+            if (inputSy) localStorage.setItem('vercel_sync_secret', inputSy);
+
+            closeSettingsModal();
+            showToast("Credenciales guardadas correctamente.");
+
+            // Si se acaba de configurar (o cambiar) el Cloud Sync Secret, verificar la nube
+            if (inputSy && inputSy !== prevSyncSecret) {
+                checkCloudOnSecretSave(inputSy);
             }
         }
 
@@ -731,6 +760,51 @@ ${textContext}`;
             document.getElementById('modalOrApiKey').value = '';
             document.getElementById('modalSyncSecret').value = '';
             showToast("Claves y secretos borrados.");
+        }
+
+        // ----------------------------------------
+        // DETECCIÓN Y RECUPERACIÓN DE DATOS EN NUBE
+        // ----------------------------------------
+
+        async function checkCloudOnSecretSave(syncSecret) {
+            try {
+                const listRes = await fetch('/api/pull', {
+                    method: 'GET',
+                    headers: { 'Authorization': `Bearer ${syncSecret}` }
+                });
+                if (!listRes.ok) return;
+                const listData = await listRes.json();
+                const cloudFiles = listData.fileIds || [];
+
+                if (cloudFiles.length > 0) {
+                    const localVideoIds = getHistory().map(h => h.videoId);
+                    const missingLocally = cloudFiles.filter(id => !localVideoIds.includes(id));
+                    if (missingLocally.length > 0) {
+                        showCloudRecoveryBanner(missingLocally.length, cloudFiles.length);
+                    }
+                }
+            } catch (e) {
+                // Fallo silencioso: si no hay conexión o la API falla, no interrumpir al usuario
+            }
+        }
+
+        function showCloudRecoveryBanner(missingCount, totalCount) {
+            const banner = document.getElementById('cloudRecoveryBanner');
+            document.getElementById('cloudRecoveryMsg').textContent =
+                `Se encontraron ${totalCount} transcripción(es) en tu repositorio de respaldo, de las cuales ${missingCount} no están en este navegador. Para no perder tus datos, es necesario recuperarlos antes de continuar usando la página.`;
+            banner.classList.remove('hidden');
+            lucide.createIcons();
+            banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function dismissCloudRecoveryBanner() {
+            document.getElementById('cloudRecoveryBanner').classList.add('hidden');
+        }
+
+        async function restoreFromCloud() {
+            dismissCloudRecoveryBanner();
+            openHistoryModal();
+            await importFromCloud();
         }
 
         // ----------------------------------------
@@ -945,54 +1019,57 @@ ${textContext}`;
         }
 
         // ----------------------------------------
-        // SMART CLOUD SYNC (Vercel + GitHub)
+        // IMPORTAR DESDE LA NUBE
         // ----------------------------------------
 
-        async function triggerSmartSync() {
+        async function importFromCloud() {
             const syncSecret = localStorage.getItem('vercel_sync_secret');
             if (!syncSecret) {
-                showToast("Falta el Secret de Vercel. Configúralo en el panel de Ajustes.");
+                showToast("Falta el Secret de Vercel. Configúralo en Ajustes.");
                 return;
             }
 
-            const btn = document.getElementById('btnSyncCloud');
-            const icon = document.getElementById('iconSync');
-            const txt = document.getElementById('txtSync');
+            const btn = document.getElementById('btnImportCloud');
+            const icon = document.getElementById('iconImport');
+            const txt = document.getElementById('txtImport');
 
             const setUiState = (message, isSpinning = true) => {
                 txt.textContent = message;
                 btn.disabled = isSpinning;
-                if (isSpinning) {
-                    icon.classList.add('animate-spin');
-                    icon.setAttribute('data-lucide', 'loader-2');
-                } else {
-                    icon.classList.remove('animate-spin');
-                    icon.setAttribute('data-lucide', 'cloud-snow');
-                }
+                icon.setAttribute('data-lucide', isSpinning ? 'loader-2' : 'cloud-download');
+                if (isSpinning) icon.classList.add('animate-spin');
+                else icon.classList.remove('animate-spin');
                 lucide.createIcons();
             };
 
-            setUiState("Conectando nube...");
-            const localHistory = getHistory();
+            setUiState("Verificando...");
+            let localHistory = getHistory();
 
             try {
-                // 1. PULL: Listar los archivos disponibles en la nube
-                setUiState("Listando...");
+                // 1. Listar archivos en la nube
                 const listRes = await fetch('/api/pull', {
-                    method: 'GET',
                     headers: { 'Authorization': `Bearer ${syncSecret}` }
                 });
-                
-                if (!listRes.ok) throw new Error("Error obteniendo la lista de GitHub desde Vercel");
+                if (!listRes.ok) throw new Error("Error listando archivos en la nube");
                 const listData = await listRes.json();
-                const cloudFiles = listData.fileIds || []; // Array de videoIds subidos previamente
-                
-                // 2. Resolver que bajamos de la Nube (Están en Cloud pero no Local)
-                const localVideoIds = localHistory.map(h => h.videoId);
-                const missingLocally = cloudFiles.filter(cloudId => !localVideoIds.includes(cloudId));
-                
+                const cloudIds = listData.fileIds || [];
+
+                if (cloudIds.length === 0) {
+                    setUiState("Sin datos", false);
+                    showToast("La nube está vacía. No hay datos que importar.");
+                    setTimeout(() => setUiState("Importar desde Nube", false), 3000);
+                    return;
+                }
+
+                const localMap = Object.fromEntries(localHistory.map(h => [h.videoId, h]));
+                const missingLocally = cloudIds.filter(id => !localMap[id]);
+                const overlap = cloudIds.filter(id => localMap[id]);
+                let importedCount = 0;
+                const newerInCloud = [];
+
+                // 2. Descargar los que faltan localmente
                 if (missingLocally.length > 0) {
-                    setUiState(`Restaurando ${missingLocally.length} rec...`);
+                    setUiState(`Importando ${missingLocally.length}...`);
                     for (const pullId of missingLocally) {
                         try {
                             const pullRes = await fetch(`/api/pull?id=${pullId}`, {
@@ -1000,60 +1077,170 @@ ${textContext}`;
                             });
                             const pullData = await pullRes.json();
                             if (pullData.data) {
-                                // Las descargadas por defecto ya están "synced: true" porque vienen de cloud
-                                pullData.data.synced = true; 
+                                pullData.data.synced = true;
                                 localHistory.push(pullData.data);
+                                importedCount++;
                             }
                         } catch (e) {
-                            console.error(`Error bajando ${pullId}`, e);
+                            console.error(`Error descargando ${pullId}`, e);
                         }
                     }
-                    // Ordenamos de mas nuevo a mas viejo segun el ID (timestamp local) si no tienen ID se usa el del cloud
-                    localHistory.sort((a,b) => b.id - a.id);
+                    localHistory.sort((a, b) => b.id - a.id);
                     saveHistory(localHistory);
                     renderHistoryList();
                 }
 
-                // 3. PUSH: Subir los que tenemos locales pero sin bandera de sync
-                const pendingPush = localHistory.filter(h => h.synced !== true && h.videoId !== "unknown");
-                
-                if (pendingPush.length > 0) {
-                    let uploadsCount = 0;
-                    for (const item of pendingPush) {
-                        uploadsCount++;
-                        setUiState(`Subiendo ${uploadsCount}/${pendingPush.length}...`);
-                        
+                // 3. Comparar versiones de los que existen en ambos lados
+                if (overlap.length > 0) {
+                    setUiState("Comparando versiones...");
+                    for (const videoId of overlap) {
                         try {
-                            const pushRes = await fetch('/api/push', {
-                                method: 'POST',
-                                headers: { 
-                                    'Authorization': `Bearer ${syncSecret}`,
-                                    'Content-Type': 'application/json' 
-                                },
-                                body: JSON.stringify({ videoId: item.videoId, data: item })
+                            const res = await fetch(`/api/pull?id=${videoId}`, {
+                                headers: { 'Authorization': `Bearer ${syncSecret}` }
                             });
-                            
-                            if (pushRes.ok) {
-                                item.synced = true; // Marcar como enviado localmente
+                            if (!res.ok) continue;
+                            const pulled = await res.json();
+                            const cloudItem = pulled.data;
+                            if (cloudItem && cloudItem.id > localMap[videoId].id) {
+                                newerInCloud.push({ videoId, cloudItem, localItem: localMap[videoId] });
                             }
-                        } catch (e) {
-                            console.error(`Error subiendo ${item.videoId}`, e);
-                        }
+                        } catch (e) { /* ignorar */ }
                     }
-                    saveHistory(localHistory);
                 }
 
-                // FIN
-                setUiState("¡Sincronizado!", false);
-                showToast("Sincronización Inteligente de Vercel Nube exitosa.");
-                
-                // Retornar botón a estado normal tras 3 segundos
-                setTimeout(() => { setUiState("Smart Sync", false); }, 3000);
+                setUiState("Listo", false);
+
+                // 4. Reportar resultado al usuario
+                if (importedCount === 0 && newerInCloud.length === 0) {
+                    showToast("✓ Todo está al día. No hay datos nuevos en la nube.");
+                } else {
+                    if (importedCount > 0) showToast(`${importedCount} transcripción(es) nuevas importadas desde la nube.`);
+                    if (newerInCloud.length > 0) showCloudUpdatesBanner(newerInCloud);
+                }
+
+                setTimeout(() => setUiState("Importar desde Nube", false), 3000);
 
             } catch (err) {
-                console.error("Fallo Smart Sync", err);
-                setUiState("Sync Falló", false);
-                showToast("Ocurrió un error en la sincronización.");
+                console.error("Error en importación:", err);
+                setUiState("Error", false);
+                showToast("Error al conectar con la nube.");
+                setTimeout(() => setUiState("Importar desde Nube", false), 3000);
+            }
+        }
+
+        function showCloudUpdatesBanner(newerItems) {
+            // Eliminar banner previo si existe
+            const existing = document.getElementById('cloudUpdatesBanner');
+            if (existing) existing.remove();
+
+            const container = document.getElementById('historyListContainer');
+            const banner = document.createElement('div');
+            banner.id = 'cloudUpdatesBanner';
+            banner.className = 'bg-sky-50 border-2 border-sky-300 rounded-lg p-4 flex items-start gap-3 shrink-0';
+            banner.innerHTML = `
+                <i data-lucide="cloud-download" class="w-5 h-5 text-sky-600 shrink-0 mt-0.5"></i>
+                <div class="flex-1">
+                    <p class="text-sm font-bold text-sky-900">${newerItems.length} transcripción(es) con versión más reciente en la nube</p>
+                    <ul class="text-xs text-sky-800 mt-1.5 space-y-0.5 list-disc list-inside">
+                        ${newerItems.map(n => `<li class="truncate">${n.cloudItem.title || n.videoId}</li>`).join('')}
+                    </ul>
+                    <div class="flex gap-2 mt-3 flex-wrap">
+                        <button type="button" onclick="applyAllCloudUpdates()" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs rounded transition-colors flex items-center gap-1.5">
+                            <i data-lucide="download" class="w-3.5 h-3.5"></i> Actualizar todos (${newerItems.length})
+                        </button>
+                        <button type="button" onclick="document.getElementById('cloudUpdatesBanner').remove()" class="px-3 py-1.5 bg-white hover:bg-sky-50 text-sky-700 font-medium text-xs rounded transition-colors border border-sky-200">
+                            Descartar
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            window._pendingCloudUpdates = newerItems;
+            container.prepend(banner);
+            lucide.createIcons();
+        }
+
+        function applyAllCloudUpdates() {
+            const newerItems = window._pendingCloudUpdates || [];
+            if (newerItems.length === 0) return;
+
+            let history = getHistory();
+            for (const { videoId, cloudItem } of newerItems) {
+                const idx = history.findIndex(h => h.videoId === videoId);
+                if (idx !== -1) {
+                    cloudItem.synced = true;
+                    history[idx] = cloudItem;
+                }
+            }
+            saveHistory(history);
+            window._pendingCloudUpdates = [];
+            renderHistoryList();
+            showToast(`${newerItems.length} transcripción(es) actualizadas desde la nube.`);
+        }
+
+        // ----------------------------------------
+        // RESPALDAR EN LA NUBE
+        // ----------------------------------------
+
+        async function backupToCloud() {
+            const syncSecret = localStorage.getItem('vercel_sync_secret');
+            if (!syncSecret) {
+                showToast("Falta el Secret de Vercel. Configúralo en el panel de Ajustes.");
+                return;
+            }
+
+            const btn = document.getElementById('btnBackupCloud');
+            const icon = document.getElementById('iconBackup');
+            const txt = document.getElementById('txtBackup');
+
+            const setUiState = (message, isSpinning = true) => {
+                txt.textContent = message;
+                btn.disabled = isSpinning;
+                icon.setAttribute('data-lucide', isSpinning ? 'loader-2' : 'cloud-upload');
+                if (isSpinning) icon.classList.add('animate-spin');
+                else icon.classList.remove('animate-spin');
+                lucide.createIcons();
+            };
+
+            const localHistory = getHistory();
+            const pendingPush = localHistory.filter(h => h.synced !== true && h.videoId !== "unknown");
+
+            if (pendingPush.length === 0) {
+                showToast("✓ Todo está respaldado. No hay nada nuevo que subir.");
+                return;
+            }
+
+            setUiState(`Subiendo 0/${pendingPush.length}...`);
+
+            try {
+                let count = 0;
+                for (const item of pendingPush) {
+                    count++;
+                    setUiState(`Subiendo ${count}/${pendingPush.length}...`);
+                    try {
+                        const pushRes = await fetch('/api/push', {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${syncSecret}`,
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ videoId: item.videoId, data: item })
+                        });
+                        if (pushRes.ok) item.synced = true;
+                    } catch (e) {
+                        console.error(`Error subiendo ${item.videoId}`, e);
+                    }
+                }
+                saveHistory(localHistory);
+                setUiState("¡Respaldado!", false);
+                showToast(`${pendingPush.length} transcripción(es) respaldadas en la nube.`);
+                setTimeout(() => setUiState("Respaldar", false), 3000);
+
+            } catch (err) {
+                console.error("Error en backup:", err);
+                setUiState("Error", false);
+                showToast("Ocurrió un error al respaldar.");
+                setTimeout(() => setUiState("Respaldar", false), 3000);
             }
         }
     </script>
