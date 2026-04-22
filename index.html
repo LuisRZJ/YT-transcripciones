@@ -1052,11 +1052,39 @@ ${textContext}`;
                 });
                 if (!listRes.ok) throw new Error("Error listando archivos en la nube");
                 const listData = await listRes.json();
-                const cloudIds = listData.fileIds || [];
+                const cloudIdsRaw = listData.fileIds || [];
+
+                // Extraer _api_keys si existe
+                let keysImported = false;
+                const keysIndex = cloudIdsRaw.indexOf('_api_keys');
+                if (keysIndex !== -1) {
+                    cloudIdsRaw.splice(keysIndex, 1);
+                    try {
+                        const pullRes = await fetch(`/api/pull?id=_api_keys`, {
+                            headers: { 'Authorization': `Bearer ${syncSecret}` }
+                        });
+                        if (pullRes.ok) {
+                            const pullData = await pullRes.json();
+                            if (pullData.data) {
+                                if (pullData.data.supadata_api_key) localStorage.setItem('supadata_api_key', pullData.data.supadata_api_key);
+                                if (pullData.data.openrouter_api_key) localStorage.setItem('openrouter_api_key', pullData.data.openrouter_api_key);
+                                keysImported = true;
+                            }
+                        }
+                    } catch (e) {
+                        console.error("Error importando claves API", e);
+                    }
+                }
+
+                const cloudIds = cloudIdsRaw;
 
                 if (cloudIds.length === 0) {
                     setUiState("Sin datos", false);
-                    showToast("La nube está vacía. No hay datos que importar.");
+                    if (keysImported) {
+                        showToast("Claves API restauradas, pero no hay transcripciones que importar.");
+                    } else {
+                        showToast("La nube está vacía. No hay datos que importar.");
+                    }
                     setTimeout(() => setUiState("Importar desde Nube", false), 3000);
                     return;
                 }
@@ -1112,9 +1140,16 @@ ${textContext}`;
 
                 // 4. Reportar resultado al usuario
                 if (importedCount === 0 && newerInCloud.length === 0) {
-                    showToast("✓ Todo está al día. No hay datos nuevos en la nube.");
+                    if (keysImported) {
+                        showToast("✓ Todo está al día. Las claves API fueron restauradas.");
+                    } else {
+                        showToast("✓ Todo está al día. No hay datos nuevos en la nube.");
+                    }
                 } else {
-                    if (importedCount > 0) showToast(`${importedCount} transcripción(es) nuevas importadas desde la nube.`);
+                    let msg = "";
+                    if (importedCount > 0) msg += `${importedCount} transcripción(es) nuevas importadas. `;
+                    if (keysImported) msg += "Claves API restauradas.";
+                    if (msg) showToast(msg.trim());
                     if (newerInCloud.length > 0) showCloudUpdatesBanner(newerInCloud);
                 }
 
@@ -1205,8 +1240,40 @@ ${textContext}`;
             const localHistory = getHistory();
             const pendingPush = localHistory.filter(h => h.synced !== true && h.videoId !== "unknown");
 
+            setUiState("Respaldando claves...");
+
+            let keysBackedUp = false;
+            try {
+                const sApiKey = localStorage.getItem('supadata_api_key');
+                const orApiKey = localStorage.getItem('openrouter_api_key');
+                if (sApiKey || orApiKey) {
+                    const res = await fetch('/api/push', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${syncSecret}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ 
+                            videoId: '_api_keys', 
+                            data: { 
+                                supadata_api_key: sApiKey || '', 
+                                openrouter_api_key: orApiKey || '' 
+                            } 
+                        })
+                    });
+                    if (res.ok) keysBackedUp = true;
+                }
+            } catch (e) {
+                console.error("Error subiendo claves API", e);
+            }
+
             if (pendingPush.length === 0) {
-                showToast("✓ Todo está respaldado. No hay nada nuevo que subir.");
+                if (keysBackedUp) {
+                    showToast("✓ Claves API respaldadas exitosamente. Las transcripciones ya están al día.");
+                } else {
+                    showToast("✓ Todo está respaldado. No hay nada nuevo que subir.");
+                }
+                setUiState("Respaldar", false);
                 return;
             }
 
