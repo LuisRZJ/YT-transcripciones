@@ -1,6 +1,31 @@
 import { callOpenRouter } from "./api-client.js";
 import { DEFAULT_OPENROUTER_MODEL_ID, STORAGE_KEYS } from "./state.js";
 
+function getChoiceContent(result, contextLabel) {
+    const content = result?.choices?.[0]?.message?.content;
+    if (!content || typeof content !== "string") {
+        throw new Error(`OpenRouter no devolvio contenido valido para ${contextLabel}.`);
+    }
+    return content.trim();
+}
+
+function parseMetaJson(rawResponse) {
+    const sanitized = (rawResponse || "")
+        .replace(/```json/gi, "")
+        .replace(/```/g, "")
+        .trim();
+
+    try {
+        return JSON.parse(sanitized);
+    } catch {
+        const jsonBlock = sanitized.match(/\{[\s\S]*\}/);
+        if (jsonBlock) {
+            return JSON.parse(jsonBlock[0]);
+        }
+        throw new Error("La IA devolvio metadatos en formato no JSON.");
+    }
+}
+
 function getSelectedModelId() {
     const savedModelId = localStorage.getItem(STORAGE_KEYS.openrouterModelId);
     if (savedModelId && savedModelId.trim()) {
@@ -58,7 +83,7 @@ ${chunk}`;
     };
 
     const result = await callOpenRouter(payload, openRouterKey);
-    return result.choices[0].message.content.trim();
+    return getChoiceContent(result, "el formateo de bloques");
 }
 
 export async function generateMetaWithAI(fullText, openRouterKey) {
@@ -90,8 +115,6 @@ ${textContext}`;
     };
 
     const result = await callOpenRouter(payload, openRouterKey);
-    let jsonString = result.choices[0].message.content.trim();
-
-    jsonString = jsonString.replace(/```json/gi, "").replace(/```/g, "").trim();
-    return JSON.parse(jsonString);
+    const rawMeta = getChoiceContent(result, "la generacion de metadatos");
+    return parseMetaJson(rawMeta);
 }
