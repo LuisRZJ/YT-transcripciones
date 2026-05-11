@@ -29,6 +29,16 @@ function buildAiErrorMessage(error) {
     return rawMessage || "Ocurrio un error desconocido al procesar con IA.";
 }
 
+function isFatalAiRequestError(error) {
+    const status = typeof error?.status === "number" ? error.status : null;
+    if (status === 401 || status === 402 || status === 403 || status === 429) {
+        return true;
+    }
+
+    const message = String(error?.message || "");
+    return /missing authentication header|unauthorized|api key|insufficient credits|payment required|rate limit|too many requests/i.test(message);
+}
+
 export async function processAndRender(data) {
     if (refs.jsonOutput) {
         refs.jsonOutput.textContent = JSON.stringify(data, null, 2);
@@ -94,6 +104,10 @@ export async function processAndRender(data) {
             try {
                 formattedChunk = await formatChunkWithAI(chunks[i], openRouterKey);
             } catch (chunkError) {
+                if (isFatalAiRequestError(chunkError)) {
+                    throw chunkError;
+                }
+
                 failedChunks += 1;
                 console.warn(`Error al formatear bloque ${i + 1}/${chunks.length}:`, chunkError);
                 if (!firstChunkErrorReason) {

@@ -1,5 +1,6 @@
 import { refs } from "./dom.js";
 import { STORAGE_KEYS } from "./state.js";
+import { normalizeOpenRouterKey } from "./api-client.js";
 import { showToast } from "./ui-actions.js";
 
 export function openSettingsModal() {
@@ -8,9 +9,14 @@ export function openSettingsModal() {
     }
 
     const savedSdKey = localStorage.getItem(STORAGE_KEYS.supadataApiKey);
-    const savedOrKey = localStorage.getItem(STORAGE_KEYS.openrouterApiKey);
+    const storedOrKey = localStorage.getItem(STORAGE_KEYS.openrouterApiKey);
+    const savedOrKey = normalizeOpenRouterKey(storedOrKey);
     const savedModelId = localStorage.getItem(STORAGE_KEYS.openrouterModelId);
     const savedSyKey = localStorage.getItem(STORAGE_KEYS.vercelSyncSecret);
+
+    if (storedOrKey && savedOrKey && storedOrKey !== savedOrKey) {
+        localStorage.setItem(STORAGE_KEYS.openrouterApiKey, savedOrKey);
+    }
 
     if (refs.modalApiKey) {
         refs.modalApiKey.value = savedSdKey || "";
@@ -56,7 +62,7 @@ export function closeSettingsModal() {
 
 export function saveApiKey(onSyncSecretChanged) {
     const inputSd = refs.modalApiKey ? refs.modalApiKey.value.trim() : "";
-    const inputOr = refs.modalOrApiKey ? refs.modalOrApiKey.value.trim() : "";
+    const inputOr = normalizeOpenRouterKey(refs.modalOrApiKey ? refs.modalOrApiKey.value : "");
     const inputModel = refs.modalModelId ? refs.modalModelId.value.trim() : "";
     const inputSy = refs.modalSyncSecret ? refs.modalSyncSecret.value.trim() : "";
 
@@ -72,6 +78,10 @@ export function saveApiKey(onSyncSecretChanged) {
         localStorage.setItem(STORAGE_KEYS.openrouterApiKey, inputOr);
     } else {
         localStorage.removeItem(STORAGE_KEYS.openrouterApiKey);
+    }
+
+    if (refs.modalOrApiKey) {
+        refs.modalOrApiKey.value = inputOr;
     }
 
     if (inputModel) {

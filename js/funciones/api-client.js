@@ -1,4 +1,45 @@
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const INVALID_OPENROUTER_KEY_VALUES = new Set([
+    "null",
+    "undefined",
+    "none",
+    "bearer",
+    "token",
+    "your_openrouter_api_key",
+    "tu_openrouter_key"
+]);
+
+export function normalizeOpenRouterKey(rawKey) {
+    const value = String(rawKey ?? "")
+        .trim()
+        .replace(/^["']+|["']+$/g, "");
+
+    if (!value) {
+        return "";
+    }
+
+    return value.replace(/^bearer\s+/i, "").trim();
+}
+
+function createAuthValidationError(message) {
+    const error = new Error(message);
+    error.status = 401;
+    return error;
+}
+
+function validateOpenRouterKey(rawKey) {
+    const normalizedKey = normalizeOpenRouterKey(rawKey);
+
+    if (!normalizedKey) {
+        throw createAuthValidationError("OpenRouter: API Key no configurada.");
+    }
+
+    if (INVALID_OPENROUTER_KEY_VALUES.has(normalizedKey.toLowerCase()) || normalizedKey.length < 12) {
+        throw createAuthValidationError("OpenRouter: API Key invalida o incompleta. Pega solo la clave (sin 'Bearer').");
+    }
+
+    return normalizedKey;
+}
 
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -80,9 +121,7 @@ export async function fetchSupadataTranscript(videoUrl, apiKey) {
 }
 
 export async function callOpenRouter(payload, openRouterKey) {
-    if (!openRouterKey || !openRouterKey.trim()) {
-        throw new Error("OpenRouter: API Key no configurada.");
-    }
+    const normalizedOpenRouterKey = validateOpenRouterKey(openRouterKey);
 
     let response;
     try {
@@ -90,7 +129,7 @@ export async function callOpenRouter(payload, openRouterKey) {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${openRouterKey}`,
+                Authorization: `Bearer ${normalizedOpenRouterKey}`,
                 "HTTP-Referer": window.location.href,
                 "X-Title": "Extractor YT"
             },

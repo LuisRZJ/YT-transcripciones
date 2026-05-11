@@ -1,5 +1,6 @@
 import { byId, refs, rerenderIcons } from "./dom.js";
 import { state, STORAGE_KEYS } from "./state.js";
+import { normalizeOpenRouterKey } from "./api-client.js";
 import { showToast } from "./ui-actions.js";
 import { getHistory, openHistoryModal, renderHistoryList, saveHistory } from "./history.js";
 
@@ -219,8 +220,9 @@ export async function importFromCloud() {
                     }
 
                     if (hasOpenrouter) {
-                        if (keyData.openrouter_api_key) {
-                            localStorage.setItem(STORAGE_KEYS.openrouterApiKey, keyData.openrouter_api_key);
+                        const normalizedCloudOrKey = normalizeOpenRouterKey(keyData.openrouter_api_key);
+                        if (normalizedCloudOrKey) {
+                            localStorage.setItem(STORAGE_KEYS.openrouterApiKey, normalizedCloudOrKey);
                         } else {
                             localStorage.removeItem(STORAGE_KEYS.openrouterApiKey);
                         }
@@ -426,7 +428,7 @@ export async function backupToCloud() {
     let keysBackedUp = false;
     try {
         const sApiKey = localStorage.getItem(STORAGE_KEYS.supadataApiKey);
-        const orApiKey = localStorage.getItem(STORAGE_KEYS.openrouterApiKey);
+        const orApiKey = normalizeOpenRouterKey(localStorage.getItem(STORAGE_KEYS.openrouterApiKey));
         const modelId = localStorage.getItem(STORAGE_KEYS.openrouterModelId);
 
         const res = await fetch("/api/push", {
