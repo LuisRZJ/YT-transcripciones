@@ -1,0 +1,31 @@
+{
+  "name": "Extractor de Transcripciones YT",
+  "short_name": "YT Transcripciones",
+  "description": "Extrae y estructura transcripciones de YouTube con historial local y sincronizacion en nube.",
+  "start_url": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#e2e8f0",
+  "theme_color": "#dc2626",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/apple-touch-icon.svg",
+      "sizes": "180x180",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
