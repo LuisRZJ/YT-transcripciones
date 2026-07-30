@@ -4,8 +4,15 @@ function getById(id) {
 
 export const refs = {
     appHeader: getById("appHeader"),
+    appContent: document.querySelector(".app-content"),
     headerMenuBtn: getById("headerMenuBtn"),
     headerMenuPanel: getById("headerMenuPanel"),
+
+    loginView: getById("loginView"),
+    loginForm: getById("loginForm"),
+    loginSecretInput: getById("loginSecretInput"),
+    loginSubmitBtn: getById("loginSubmitBtn"),
+    loginErrorMsg: getById("loginErrorMsg"),
 
     form: getById("transcriptForm"),
     submitBtn: getById("submitBtn"),
@@ -34,6 +41,11 @@ export const refs = {
     modalApiKey: getById("modalApiKey"),
     modalOrApiKey: getById("modalOrApiKey"),
     modalModelId: getById("modalModelId"),
+    modalGoogleAiKey: getById("modalGoogleAiKey"),
+    modalAiProviderSelect: getById("modalAiProviderSelect"),
+    modalRapidApiKey: getById("modalRapidApiKey"),
+    modalAudioFormat: getById("modalAudioFormat"),
+    modalAudioQuality: getById("modalAudioQuality"),
     modalSyncSecret: getById("modalSyncSecret"),
     btnCheckUpdates: getById("btnCheckUpdates"),
     iconCheckUpdates: getById("iconCheckUpdates"),
@@ -52,6 +64,15 @@ export const refs = {
     btnImportCloud: getById("btnImportCloud"),
     iconImport: getById("iconImport"),
     txtImport: getById("txtImport"),
+
+    actionPickerModal: getById("actionPickerModal"),
+
+    audioResultContainer: getById("audioResultContainer"),
+    audioProgressBar: getById("audioProgressBar"),
+    audioProgressText: getById("audioProgressText"),
+    audioResultTitle: getById("audioResultTitle"),
+    audioResultDuration: getById("audioResultDuration"),
+    audioDownloadBtn: getById("audioDownloadBtn"),
 
     toast: getById("toast")
 };

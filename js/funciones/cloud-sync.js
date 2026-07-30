@@ -210,6 +210,11 @@ export async function importFromCloud() {
                     const hasSupadata = hasOwn(keyData, "supadata_api_key");
                     const hasOpenrouter = hasOwn(keyData, "openrouter_api_key");
                     const hasModelId = hasOwn(keyData, "openrouter_model_id");
+                    const hasGoogleKey = hasOwn(keyData, "google_ai_studio_api_key");
+                    const hasProviderPref = hasOwn(keyData, "ai_provider_preference");
+                    const hasRapidApiKey = hasOwn(keyData, "rapidapi_key");
+                    const hasAudioFormat = hasOwn(keyData, "audio_format");
+                    const hasAudioQuality = hasOwn(keyData, "audio_quality");
 
                     if (hasSupadata) {
                         if (keyData.supadata_api_key) {
@@ -236,7 +241,39 @@ export async function importFromCloud() {
                         }
                     }
 
-                    keysImported = hasSupadata || hasOpenrouter || hasModelId;
+                    if (hasGoogleKey) {
+                        if (keyData.google_ai_studio_api_key) {
+                            localStorage.setItem(STORAGE_KEYS.googleAiStudioApiKey, keyData.google_ai_studio_api_key);
+                        } else {
+                            localStorage.removeItem(STORAGE_KEYS.googleAiStudioApiKey);
+                        }
+                    }
+
+                    if (hasProviderPref) {
+                        if (keyData.ai_provider_preference) {
+                            localStorage.setItem(STORAGE_KEYS.aiProviderPreference, keyData.ai_provider_preference);
+                        } else {
+                            localStorage.removeItem(STORAGE_KEYS.aiProviderPreference);
+                        }
+                    }
+
+                    if (hasRapidApiKey) {
+                        if (keyData.rapidapi_key) {
+                            localStorage.setItem(STORAGE_KEYS.rapidApiKey, keyData.rapidapi_key);
+                        } else {
+                            localStorage.removeItem(STORAGE_KEYS.rapidApiKey);
+                        }
+                    }
+
+                    if (hasAudioFormat && keyData.audio_format) {
+                        localStorage.setItem(STORAGE_KEYS.audioFormat, keyData.audio_format);
+                    }
+
+                    if (hasAudioQuality && keyData.audio_quality) {
+                        localStorage.setItem(STORAGE_KEYS.audioQuality, keyData.audio_quality);
+                    }
+
+                    keysImported = hasSupadata || hasOpenrouter || hasModelId || hasGoogleKey || hasProviderPref || hasRapidApiKey;
                 }
             } catch (e) {
                 console.error("Error importando claves API", e);
@@ -430,6 +467,11 @@ export async function backupToCloud() {
         const sApiKey = localStorage.getItem(STORAGE_KEYS.supadataApiKey);
         const orApiKey = normalizeOpenRouterKey(localStorage.getItem(STORAGE_KEYS.openrouterApiKey));
         const modelId = localStorage.getItem(STORAGE_KEYS.openrouterModelId);
+        const googleKey = localStorage.getItem(STORAGE_KEYS.googleAiStudioApiKey);
+        const providerPref = localStorage.getItem(STORAGE_KEYS.aiProviderPreference) || "openrouter";
+        const rapidKey = localStorage.getItem(STORAGE_KEYS.rapidApiKey);
+        const audioFormat = localStorage.getItem(STORAGE_KEYS.audioFormat) || "mp3";
+        const audioQuality = localStorage.getItem(STORAGE_KEYS.audioQuality) || "128";
 
         const res = await fetch("/api/push", {
             method: "POST",
@@ -442,7 +484,12 @@ export async function backupToCloud() {
                 data: {
                     supadata_api_key: sApiKey || null,
                     openrouter_api_key: orApiKey || null,
-                    openrouter_model_id: modelId || null
+                    openrouter_model_id: modelId || null,
+                    google_ai_studio_api_key: googleKey || null,
+                    ai_provider_preference: providerPref,
+                    rapidapi_key: rapidKey || null,
+                    audio_format: audioFormat,
+                    audio_quality: audioQuality
                 }
             })
         });

@@ -7,19 +7,19 @@ function buildAiErrorMessage(error) {
     const rawMessage = String(error?.message || "").trim();
 
     if (status === 401 || /unauthorized|api key|auth/i.test(rawMessage)) {
-        return "No se pudo autenticar con OpenRouter. Revisa tu API Key en Ajustes.";
+        return "No se pudo autenticar con el proveedor de IA. Revisa tus API Keys en Ajustes.";
     }
 
     if (status === 402 || /insufficient credits|payment required|quota/i.test(rawMessage)) {
-        return "OpenRouter no tiene creditos suficientes para procesar este texto.";
+        return "El proveedor de IA no tiene creditos suficientes para procesar este texto.";
     }
 
     if (status === 429 || /rate limit|too many requests/i.test(rawMessage)) {
-        return "OpenRouter alcanzo el limite de solicitudes. Intenta nuevamente en unos minutos.";
+        return "El proveedor de IA alcanzo el limite de solicitudes. Intenta nuevamente en unos minutos.";
     }
 
     if ((status && status >= 500) || /gateway|temporarily unavailable|timeout/i.test(rawMessage)) {
-        return "OpenRouter esta temporalmente inestable. Vuelve a intentarlo en un momento.";
+        return "El proveedor de IA esta temporalmente inestable. Vuelve a intentarlo en un momento.";
     }
 
     if (/json|formato|invalid/i.test(rawMessage)) {
@@ -83,6 +83,7 @@ export async function processAndRender(data) {
     }
 
     const openRouterKey = localStorage.getItem(STORAGE_KEYS.openrouterApiKey);
+    const googleKey = localStorage.getItem(STORAGE_KEYS.googleAiStudioApiKey);
 
     try {
         const chunks = chunkText(rawText, 3500);
@@ -102,7 +103,7 @@ export async function processAndRender(data) {
             let formattedChunk = "";
 
             try {
-                formattedChunk = await formatChunkWithAI(chunks[i], openRouterKey);
+                formattedChunk = await formatChunkWithAI(chunks[i], openRouterKey, googleKey);
             } catch (chunkError) {
                 if (isFatalAiRequestError(chunkError)) {
                     throw chunkError;
@@ -129,7 +130,7 @@ export async function processAndRender(data) {
         let metaData;
 
         try {
-            metaData = await generateMetaWithAI(assembledFormattedText, openRouterKey);
+            metaData = await generateMetaWithAI(assembledFormattedText, openRouterKey, googleKey);
         } catch (metaError) {
             console.warn("No se pudo generar titulo/resumen con IA:", metaError);
             metaData = {

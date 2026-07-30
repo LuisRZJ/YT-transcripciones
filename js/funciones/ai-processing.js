@@ -1,5 +1,5 @@
-import { callOpenRouter } from "./api-client.js";
-import { DEFAULT_OPENROUTER_MODEL_ID, STORAGE_KEYS } from "./state.js";
+import { callOpenRouter, callGoogleAiStudio } from "./api-client.js";
+import { DEFAULT_OPENROUTER_MODEL_ID, DEFAULT_AI_PROVIDER, GOOGLE_AI_STUDIO_MODEL, STORAGE_KEYS } from "./state.js";
 
 function getChoiceContent(result, contextLabel) {
     const content = result?.choices?.[0]?.message?.content;
@@ -34,6 +34,61 @@ function getSelectedModelId() {
     return DEFAULT_OPENROUTER_MODEL_ID;
 }
 
+function getAiProviderPreference() {
+    const saved = localStorage.getItem(STORAGE_KEYS.aiProviderPreference);
+    if (saved === "openrouter" || saved === "google") {
+        return saved;
+    }
+    return DEFAULT_AI_PROVIDER;
+}
+
+function isFatalProviderError(error) {
+    const status = typeof error?.status === "number" ? error.status : null;
+    if (status === 401 || status === 402 || status === 403) {
+        return true;
+    }
+    const msg = String(error?.message || "");
+    return /unauthorized|api key|insufficient credits|payment required|missing authentication/i.test(msg);
+}
+
+/**
+ * Llama al proveedor primario con fallback automático al secundario.
+ * Si el error del primario es fatal (401/402/403), no hace fallback.
+ * @returns {Promise<string>} El texto devuelto por el proveedor que respondió
+ */
+async function callAiWithFallback({ prompt, openRouterPayload, openRouterKey, googleKey }) {
+    const preference = getAiProviderPreference();
+    const primary = preference;
+    const fallback = preference === "openrouter" ? "google" : "openrouter";
+
+    async function callProvider(provider) {
+        if (provider === "openrouter") {
+            const result = await callOpenRouter(openRouterPayload, openRouterKey);
+            return getChoiceContent(result, "el procesamiento");
+        } else {
+            return callGoogleAiStudio(prompt, googleKey, GOOGLE_AI_STUDIO_MODEL);
+        }
+    }
+
+    try {
+        return await callProvider(primary);
+    } catch (primaryError) {
+        // Si el error es fatal (credenciales inválidas), no intentamos el fallback
+        if (isFatalProviderError(primaryError)) {
+            throw primaryError;
+        }
+
+        // Error no fatal: intentar con el proveedor de respaldo
+        console.warn(`Proveedor primario (${primary}) falló, intentando fallback (${fallback}):`, primaryError.message);
+        try {
+            return await callProvider(fallback);
+        } catch (fallbackError) {
+            // Ambos fallaron: lanzar el error del primario (más descriptivo)
+            throw primaryError;
+        }
+    }
+}
+
 export function chunkText(text, maxChars = 4000) {
     const words = text.split(" ");
     const chunks = [];
@@ -55,7 +110,7 @@ export function chunkText(text, maxChars = 4000) {
     return chunks;
 }
 
-export async function formatChunkWithAI(chunk, openRouterKey) {
+export async function formatChunkWithAI(chunk, openRouterKey, googleKey) {
     const modelId = getSelectedModelId();
 
     const prompt = `Tienes un bloque de una transcripción. Tu ÚNICA TAREA es devolver el mismo texto exacto, pero añadiendo saltos de línea dobles (\\n\\n) donde lógicamente termine un párrafo o idea. 
@@ -68,7 +123,7 @@ REGLAS ESTRICTAS:
 Texto:
 ${chunk}`;
 
-    const payload = {
+    const openRouterPayload = {
         model: modelId,
         messages: [
             {
@@ -82,11 +137,10 @@ ${chunk}`;
         ]
     };
 
-    const result = await callOpenRouter(payload, openRouterKey);
-    return getChoiceContent(result, "el formateo de bloques");
+    return callAiWithFallback({ prompt, openRouterPayload, openRouterKey, googleKey });
 }
 
-export async function generateMetaWithAI(fullText, openRouterKey) {
+export async function generateMetaWithAI(fullText, openRouterKey, googleKey) {
     const modelId = getSelectedModelId();
     const textContext = fullText.substring(0, 8000);
 
@@ -104,7 +158,7 @@ IMPORTANTE: Devuelve ÚNICAMENTE un objeto JSON válido con la siguiente estruct
 Texto:
 ${textContext}`;
 
-    const payload = {
+    const openRouterPayload = {
         model: modelId,
         messages: [
             {
@@ -114,7 +168,6 @@ ${textContext}`;
         ]
     };
 
-    const result = await callOpenRouter(payload, openRouterKey);
-    const rawMeta = getChoiceContent(result, "la generacion de metadatos");
+    const rawMeta = await callAiWithFallback({ prompt, openRouterPayload, openRouterKey, googleKey });
     return parseMetaJson(rawMeta);
 }

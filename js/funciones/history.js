@@ -141,7 +141,7 @@ export function renderHistoryList() {
         const safeDate = escapeHtml(item.date || "");
 
         return `
-            <div class="bg-white border text-left border-slate-300 rounded-lg p-5 shadow-sm hover:shadow transition-shadow flex flex-col md:flex-row gap-5 justify-between items-start md:items-center overflow-hidden">
+            <div class="bg-white border text-left border-slate-300 rounded-lg p-5 shadow-sm hover:shadow transition-shadow flex flex-col md:flex-row gap-5 justify-between items-start md:items-center overflow-hidden shrink-0">
                 <div class="flex-1 min-w-0" style="max-width: 100%;">
                     <div class="marquee-container mb-1.5" title="${safeTitle}">
                         <div class="marquee-content font-bold text-slate-800 text-lg">

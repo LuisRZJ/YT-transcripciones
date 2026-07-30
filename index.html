@@ -14,22 +14,33 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.svg">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/estilos.css">
 </head>
 <body class="bg-slate-200 min-h-screen font-sans text-slate-900">
 
-    <header id="appHeader" class="fixed inset-x-0 top-0 z-40 border-b border-slate-300 bg-white/95 shadow-sm backdrop-blur">
+    <header id="appHeader" class="hidden fixed inset-x-0 top-0 z-40 border-b border-slate-300 bg-white/95 shadow-sm backdrop-blur">
         <div class="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-start justify-between gap-3">
             <div class="min-w-0">
                 <h1 class="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2 leading-tight">
                     <i data-lucide="video" class="text-red-600 w-6 h-6 sm:w-7 sm:h-7 shrink-0"></i>
                     <span class="truncate">Extractor de Transcripciones</span>
                 </h1>
-                <p class="text-slate-600 text-xs sm:text-sm mt-1 leading-tight">Extrae y estructura videos largos de forma segura usando chunking.</p>
+                <p class="text-slate-600 text-xs sm:text-sm mt-1 leading-tight">Extrae y estructura videos largos y Shorts de YouTube usando IA.</p>
             </div>
 
             <div class="relative shrink-0">
@@ -44,36 +55,121 @@
                     <button type="button" data-action="header-menu-settings" class="w-full px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-md flex items-center gap-2">
                         <i data-lucide="settings" class="w-4 h-4"></i> Ajustes de API
                     </button>
+                    <div class="my-1 border-t border-slate-200"></div>
+                    <button type="button" data-action="logout" class="w-full px-3 py-2 text-left text-sm font-medium text-red-600 hover:bg-red-50 rounded-md flex items-center gap-2">
+                        <i data-lucide="log-out" class="w-4 h-4"></i> Cerrar Sesión
+                    </button>
                 </div>
             </div>
         </div>
     </header>
 
-    <div class="app-content max-w-4xl mx-auto">
+    <!-- Vista de Login / Autenticación -->
+    <div id="loginView" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-md">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 border border-slate-100 transform transition-all">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/30">
+                    <i data-lucide="shield-check" class="w-8 h-8"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-900 tracking-tight">Extractor YT</h2>
+                <p class="text-xs text-slate-500 mt-1">Ingresa tu contraseña de respaldo para continuar</p>
+            </div>
+
+            <form id="loginForm" class="space-y-4">
+                <div>
+                    <label for="loginSecretInput" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Contraseña (Vercel Sync Secret)</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                            <i data-lucide="lock" class="w-5 h-5"></i>
+                        </div>
+                        <input type="password" id="loginSecretInput" required autofocus
+                            class="block w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all text-sm bg-slate-50/50 focus:bg-white"
+                            placeholder="Contraseña de respaldo en la nube">
+                    </div>
+                </div>
+
+                <div id="loginErrorMsg" class="hidden text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+                    <i data-lucide="alert-circle" class="w-4 h-4 shrink-0 mt-0.5"></i>
+                    <span id="loginErrorText">Contraseña incorrecta.</span>
+                </div>
+
+                <button type="submit" id="loginSubmitBtn"
+                    class="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-3 px-4 rounded-xl transition-all shadow-lg shadow-blue-600/25 flex items-center justify-center gap-2 text-sm disabled:opacity-50">
+                    <i data-lucide="log-in" class="w-4 h-4"></i>
+                    <span>Iniciar Sesión</span>
+                </button>
+            </form>
+
+            <div class="mt-6 pt-5 border-t border-slate-100 text-center">
+                <p class="text-xs text-slate-400 leading-relaxed">
+                    <i data-lucide="info" class="w-3.5 h-3.5 inline text-slate-400 mr-0.5"></i>
+                    Al iniciar sesión se verificarán tus datos de la nube. Tu sesión permanecerá activa durante <strong>7 días</strong>.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-content hidden max-w-4xl mx-auto">
 
         <!-- Panel de Configuración e Input -->
         <div class="bg-white rounded-xl shadow-md border border-slate-300 p-6 mb-8">
             <form id="transcriptForm" class="space-y-5">
                 <!-- YouTube URL Input -->
                 <div>
-                    <label for="youtubeUrl" class="block text-sm font-semibold text-slate-800 mb-1">URL del Video de YouTube</label>
+                    <label for="youtubeUrl" class="block text-sm font-semibold text-slate-800 mb-1">URL del Video o Short de YouTube</label>
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <i data-lucide="link" class="text-slate-500 w-5 h-5"></i>
                         </div>
                         <input type="url" id="youtubeUrl" required
                             class="block w-full pl-10 pr-3 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all text-sm"
-                            placeholder="https://www.youtube.com/watch?v=...">
+                            placeholder="https://www.youtube.com/watch?v=... o https://youtube.com/shorts/...">
                     </div>
                 </div>
 
                 <!-- Botón de Envío -->
                 <button type="submit" id="submitBtn"
                     class="w-full bg-blue-700 hover:bg-blue-800 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:bg-blue-400 disabled:cursor-not-allowed">
-                    <i data-lucide="download" class="w-5 h-5"></i>
-                    <span>Extraer y Procesar Transcripción</span>
+                    <i data-lucide="zap" class="w-5 h-5"></i>
+                    <span>Procesar Video</span>
                 </button>
             </form>
+        </div>
+
+        <!-- Panel de resultado de Audio -->
+        <div id="audioResultContainer" class="hidden bg-white rounded-xl shadow-md border border-slate-300 overflow-hidden mb-8">
+            <!-- Estado: procesando -->
+            <div id="audioProcessingState" class="p-6">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center shrink-0">
+                        <i data-lucide="music" class="w-5 h-5 text-purple-600"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <p id="audioProgressText" class="text-sm font-semibold text-slate-800">Preparando audio...</p>
+                        <p class="text-xs text-slate-500 mt-0.5">RapidAPI está procesando el video</p>
+                    </div>
+                </div>
+                <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                    <div id="audioProgressBar" class="h-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+            </div>
+            <!-- Estado: listo -->
+            <div id="audioReadyState" class="hidden p-6">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shrink-0 shadow-md">
+                        <i data-lucide="music-2" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p id="audioResultTitle" class="font-bold text-slate-900 text-sm leading-snug truncate">—</p>
+                        <p id="audioResultDuration" class="text-xs text-slate-500 mt-0.5">Duración: —</p>
+                    </div>
+                    <button id="audioDownloadBtn" type="button" data-action="download-audio"
+                        class="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold rounded-lg transition-all shadow-md text-sm">
+                        <i data-lucide="download" class="w-4 h-4"></i>
+                        Descargar
+                    </button>
+                </div>
+            </div>
         </div>
 
         <!-- Estado de Carga Supadata -->
@@ -154,9 +250,11 @@
     </div>
 
     <!-- Modal de Ajustes -->
-    <div id="settingsModal" class="hidden fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center opacity-0 transition-opacity duration-300">
-        <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 transform scale-95 transition-transform duration-300">
-            <div class="flex justify-between items-center mb-5">
+    <div id="settingsModal" class="hidden fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col transform scale-95 transition-transform duration-300">
+
+            <!-- Cabecera fija -->
+            <div class="flex justify-between items-center px-6 pt-6 pb-4 border-b border-slate-200 shrink-0">
                 <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
                     <i data-lucide="settings" class="w-5 h-5 text-slate-600"></i> Ajustes
                 </h2>
@@ -165,59 +263,162 @@
                 </button>
             </div>
 
-            <div class="mb-4">
-                <label for="modalApiKey" class="block text-sm font-semibold text-slate-800 mb-1">Supadata API Key</label>
-                <div class="relative">
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <i data-lucide="key" class="text-slate-500 w-5 h-5"></i>
+            <!-- Cuerpo scrollable -->
+            <div class="overflow-y-auto flex-1 min-h-0 px-6 py-5 space-y-5">
+
+                <!-- Supadata API Key -->
+                <div>
+                    <label for="modalApiKey" class="block text-sm font-semibold text-slate-800 mb-1">Supadata API Key</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i data-lucide="key" class="text-slate-500 w-5 h-5"></i>
+                        </div>
+                        <input type="password" id="modalApiKey"
+                            class="block w-full pl-10 pr-3 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all text-sm"
+                            placeholder="Pega tu API Key aquí (ej. sp_...)">
                     </div>
-                    <input type="password" id="modalApiKey"
-                        class="block w-full pl-10 pr-3 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all text-sm"
-                        placeholder="Pega tu API Key aquí (ej. sp_...)">
                 </div>
+
+                <!-- Sección IA -->
+                <div class="border border-slate-200 rounded-xl p-4 bg-slate-50 space-y-4">
+                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                        <i data-lucide="sparkles" class="w-3.5 h-3.5 text-purple-500"></i> Proveedores de IA
+                    </p>
+
+                    <!-- OpenRouter API Key -->
+                    <div>
+                        <label for="modalOrApiKey" class="block text-sm font-semibold text-slate-800 mb-1">OpenRouter API Key</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i data-lucide="key" class="text-slate-500 w-5 h-5"></i>
+                            </div>
+                            <input type="password" id="modalOrApiKey"
+                                class="block w-full pl-10 pr-3 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all text-sm"
+                                placeholder="Pega tu OpenRouter Key aquí (sk-or-...)">
+                        </div>
+                    </div>
+
+                    <!-- Modelo IA OpenRouter -->
+                    <div>
+                        <label for="modalModelId" class="block text-sm font-semibold text-slate-800 mb-1">Modelo (OpenRouter ID)</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i data-lucide="bot" class="text-slate-500 w-5 h-5"></i>
+                            </div>
+                            <input type="text" id="modalModelId"
+                                class="block w-full pl-10 pr-3 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all text-sm"
+                                placeholder="deepseek/deepseek-v4-flash">
+                        </div>
+                        <p class="text-xs text-slate-500 mt-1.5">Por defecto: <span class="font-mono">deepseek/deepseek-v4-flash</span></p>
+                    </div>
+
+                    <!-- Divisor -->
+                    <div class="border-t border-slate-200"></div>
+
+                    <!-- Google AI Studio API Key -->
+                    <div>
+                        <label for="modalGoogleAiKey" class="block text-sm font-semibold text-slate-800 mb-1 flex items-center gap-1.5">
+                            Google AI Studio API Key
+                            <span class="text-xs font-normal text-slate-400 bg-slate-200 px-1.5 py-0.5 rounded-full">Modelo fijo: gemini-3.5-flash-lite</span>
+                        </label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i data-lucide="key" class="text-slate-500 w-5 h-5"></i>
+                            </div>
+                            <input type="password" id="modalGoogleAiKey"
+                                class="block w-full pl-10 pr-3 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all text-sm"
+                                placeholder="Pega tu clave de Google AI Studio (AIza...)">
+                        </div>
+                    </div>
+
+                    <!-- Selector de proveedor primario -->
+                    <div>
+                        <label for="modalAiProviderSelect" class="block text-sm font-semibold text-slate-800 mb-1">Proveedor principal de IA</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i data-lucide="shuffle" class="text-slate-500 w-4 h-4"></i>
+                            </div>
+                            <select id="modalAiProviderSelect"
+                                class="block w-full pl-10 pr-3 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all text-sm bg-white appearance-none">
+                                <option value="openrouter">OpenRouter (primario) → Google AI Studio (fallback)</option>
+                                <option value="google">Google AI Studio (primario) → OpenRouter (fallback)</option>
+                            </select>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-1.5">Si el proveedor primario falla por error de red o servidor, se usa el de respaldo automáticamente.</p>
+                    </div>
+
+                    <p class="text-xs text-slate-500">Todas las claves de IA se guardan localmente en tu navegador y se incluyen en los respaldos nube.</p>
+                </div>
+
+                <!-- Sección Descargador de Audio -->
+                <div class="border border-slate-200 rounded-xl p-4 bg-slate-50 space-y-4">
+                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                        <i data-lucide="music" class="w-3.5 h-3.5 text-pink-500"></i> Descargador de Audio
+                    </p>
+
+                    <!-- RapidAPI Key -->
+                    <div>
+                        <label for="modalRapidApiKey" class="block text-sm font-semibold text-slate-800 mb-1 flex items-center gap-1.5">
+                            RapidAPI Key
+                            <a href="https://rapidapi.com/Opachi/api/youtube-mp4-mp3-downloader" target="_blank" rel="noopener" class="text-xs font-normal text-blue-600 hover:underline">Ver en RapidAPI →</a>
+                        </label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i data-lucide="key" class="text-slate-500 w-5 h-5"></i>
+                            </div>
+                            <input type="password" id="modalRapidApiKey"
+                                class="block w-full pl-10 pr-3 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-sm"
+                                placeholder="Pega tu RapidAPI key aquí">
+                        </div>
+                    </div>
+
+                    <!-- Formato y Calidad en fila -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label for="modalAudioFormat" class="block text-sm font-semibold text-slate-800 mb-1">Formato</label>
+                            <select id="modalAudioFormat"
+                                class="block w-full px-3 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-sm bg-white">
+                                <option value="mp3">MP3 (máx. compatible)</option>
+                                <option value="m4a">M4A (mejor calidad)</option>
+                                <option value="webm">WebM</option>
+                                <option value="aac">AAC</option>
+                                <option value="opus">Opus</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="modalAudioQuality" class="block text-sm font-semibold text-slate-800 mb-1">Calidad (kbps)</label>
+                            <select id="modalAudioQuality"
+                                class="block w-full px-3 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-sm bg-white">
+                                <option value="128">128 kbps</option>
+                                <option value="192">192 kbps</option>
+                                <option value="256">256 kbps</option>
+                                <option value="320">320 kbps (máx.)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <p class="text-xs text-slate-500">El audio generado se descarga directamente a tu dispositivo. No se guarda en la biblioteca.</p>
+                </div>
+
+                <!-- Cloud Sync Secret -->
+                <div class="border-t border-slate-200 pt-4">
+                    <label for="modalSyncSecret" class="block text-sm font-bold text-slate-800 mb-1">🔐 Cloud Sync Secret (Vercel API)</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i data-lucide="lock" class="text-slate-500 w-5 h-5"></i>
+                        </div>
+                        <input type="password" id="modalSyncSecret"
+                            class="block w-full pl-10 pr-3 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all text-sm"
+                            placeholder="Contraseña Vercel (Solo necesaria para Backup Nube)">
+                    </div>
+                </div>
+
             </div>
 
-            <div class="mb-4">
-                <label for="modalOrApiKey" class="block text-sm font-semibold text-slate-800 mb-1">OpenRouter API Key</label>
-                <div class="relative">
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <i data-lucide="key" class="text-slate-500 w-5 h-5"></i>
-                    </div>
-                    <input type="password" id="modalOrApiKey"
-                        class="block w-full pl-10 pr-3 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all text-sm"
-                        placeholder="Pega tu OpenRouter Key aquí">
-                </div>
-                <p class="text-xs text-slate-500 mt-2">Ambas claves de IA se guardan localmente en tu navegador.</p>
-            </div>
-
-            <div class="mb-4">
-                <label for="modalModelId" class="block text-sm font-semibold text-slate-800 mb-1">Modelo IA (OpenRouter ID)</label>
-                <div class="relative">
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <i data-lucide="bot" class="text-slate-500 w-5 h-5"></i>
-                    </div>
-                    <input type="text" id="modalModelId"
-                        class="block w-full pl-10 pr-3 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all text-sm"
-                        placeholder="deepseek/deepseek-v4-flash">
-                </div>
-                <p class="text-xs text-slate-500 mt-2">Si lo dejas vacío, se usa por defecto: <span class="font-mono">deepseek/deepseek-v4-flash</span>.</p>
-            </div>
-
-            <div class="mb-6 border-t border-slate-200 pt-5">
-                <label for="modalSyncSecret" class="block text-sm font-bold text-slate-800 mb-1">🔐 Cloud Sync Secret (Vercel API)</label>
-                <div class="relative">
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <i data-lucide="lock" class="text-slate-500 w-5 h-5"></i>
-                    </div>
-                    <input type="password" id="modalSyncSecret"
-                        class="block w-full pl-10 pr-3 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all text-sm"
-                        placeholder="Contraseña Vercel (Solo necesaria para Backup Nube)">
-                </div>
-            </div>
-
-            <div class="flex items-center justify-between">
+            <!-- Pie de página fijo -->
+            <div class="px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-xl flex items-center justify-between shrink-0">
                 <button type="button" data-action="delete-api-key" class="text-red-600 hover:text-red-800 text-sm font-medium px-3 py-2 rounded-lg hover:bg-red-50 transition-colors flex items-center gap-1">
-                    <i data-lucide="trash-2" class="w-4 h-4"></i> Borrar Clave
+                    <i data-lucide="trash-2" class="w-4 h-4"></i> Borrar Claves
                 </button>
                 <div class="flex gap-2 flex-wrap justify-end">
                     <button type="button" id="btnCheckUpdates" data-action="check-app-updates" class="px-4 py-2 text-slate-700 bg-slate-100 hover:bg-slate-200 font-medium rounded-lg transition-colors text-sm flex items-center gap-2 border border-slate-300">
@@ -232,11 +433,12 @@
                     </button>
                 </div>
             </div>
+
         </div>
     </div>
 
     <!-- Modal de Historial -->
-    <div id="historyModal" class="hidden fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center opacity-0 transition-opacity duration-300">
+    <div id="historyModal" class="hidden fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
         <div class="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col transform scale-95 transition-transform duration-300">
             <div class="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-xl shrink-0">
                 <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
@@ -247,7 +449,7 @@
                 </button>
             </div>
 
-            <div id="historyListContainer" class="p-6 overflow-y-auto flex-1 bg-slate-100/50 flex flex-col gap-4">
+            <div id="historyListContainer" class="p-6 overflow-y-auto flex-1 bg-slate-100/50 flex flex-col gap-4 min-h-0">
                 <!-- Tarjetas generadas dinámicamente -->
             </div>
 
@@ -297,6 +499,54 @@
     <div id="toast" class="fixed bottom-4 right-4 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-800 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 z-50">
         <i data-lucide="check-circle" class="w-5 h-5 text-green-400"></i>
         <span class="text-sm font-medium">¡Acción completada!</span>
+    </div>
+
+    <!-- Modal Selector de Acción -->
+    <div id="actionPickerModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md transform scale-95 transition-transform duration-300 overflow-hidden">
+            <!-- Cabecera -->
+            <div class="px-6 pt-6 pb-4 border-b border-slate-100">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900">¿Qué deseas hacer?</h2>
+                        <p id="actionPickerVideoId" class="text-xs text-slate-500 mt-0.5 font-mono"></p>
+                    </div>
+                    <button type="button" data-action="close-action-picker" class="text-slate-400 hover:text-slate-600 transition-colors p-1">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Opciones -->
+            <div class="p-5 grid grid-cols-2 gap-3">
+                <!-- Opción A: Transcripción -->
+                <button type="button" data-action="pick-transcript"
+                    class="group relative flex flex-col items-center text-center gap-3 p-5 rounded-xl border-2 border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition-all duration-200 cursor-pointer">
+                    <div class="w-12 h-12 rounded-xl bg-blue-100 group-hover:bg-blue-200 flex items-center justify-center transition-colors">
+                        <i data-lucide="file-text" class="w-6 h-6 text-blue-700"></i>
+                    </div>
+                    <div>
+                        <p class="font-bold text-slate-800 text-sm">Transcripción</p>
+                        <p class="text-xs text-slate-500 mt-0.5 leading-tight">Extrae y formatea el texto con IA</p>
+                    </div>
+                </button>
+
+                <!-- Opción B: Audio -->
+                <button type="button" data-action="pick-audio"
+                    class="group relative flex flex-col items-center text-center gap-3 p-5 rounded-xl border-2 border-slate-200 hover:border-purple-400 hover:bg-purple-50 transition-all duration-200 cursor-pointer">
+                    <div class="w-12 h-12 rounded-xl bg-purple-100 group-hover:bg-purple-200 flex items-center justify-center transition-colors">
+                        <i data-lucide="music" class="w-6 h-6 text-purple-700"></i>
+                    </div>
+                    <div>
+                        <p class="font-bold text-slate-800 text-sm">Descargar Audio</p>
+                        <p class="text-xs text-slate-500 mt-0.5 leading-tight">Obtén el audio en MP3, M4A u otros</p>
+                    </div>
+                    <span id="audioPickerBadge" class="hidden absolute top-2 right-2 text-xs bg-amber-100 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-full font-medium">Sin clave</span>
+                </button>
+            </div>
+
+            <p class="text-center text-xs text-slate-400 pb-5">Puedes configurar las API Keys en <button type="button" data-action="picker-open-settings" class="text-blue-600 hover:underline font-medium">Ajustes</button>.</p>
+        </div>
     </div>
 
     <script type="module" src="js/app.js"></script>
