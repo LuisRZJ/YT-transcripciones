@@ -1,6 +1,7 @@
 import { STORAGE_KEYS, SESSION_DURATION_MS } from "./state.js";
 import { refs, rerenderIcons } from "./dom.js";
 import { showToast } from "./ui-actions.js";
+import { scheduleHeaderOffsetSync } from "../app.js";
 
 /**
  * Comprueba si existe una sesión válida que no haya superado los 7 días.
@@ -114,6 +115,7 @@ export function showMainApp() {
     }
 
     rerenderIcons();
+    scheduleHeaderOffsetSync();
 }
 
 /**

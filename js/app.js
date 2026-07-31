@@ -76,36 +76,43 @@ function toggleHeaderMenu() {
 
 // ─── Header offset ───────────────────────────────────────────────────────────
 
-function syncHeaderOffset() {
-	if (!refs.appHeader) {
+export function syncHeaderOffset() {
+	if (!refs.appHeader || refs.appHeader.classList.contains("hidden")) {
 		return;
 	}
 
-	const headerHeight = Math.ceil(refs.appHeader.getBoundingClientRect().height);
-	const extraGap = 12;
-	document.body.style.setProperty("--app-header-offset", `${headerHeight + extraGap}px`);
+	const height = Math.ceil(refs.appHeader.getBoundingClientRect().height);
+	if (height > 0) {
+		const extraGap = 16;
+		document.body.style.setProperty("--app-header-offset", `${height + extraGap}px`);
+	}
 }
 
-function scheduleHeaderOffsetSync() {
+export function scheduleHeaderOffsetSync() {
 	requestAnimationFrame(syncHeaderOffset);
 }
 
 // ─── Warning duplicados ──────────────────────────────────────────────────────
 
-function showDuplicateWarning(existingId) {
+function showDuplicateWarning(existingId, videoId) {
 	if (!refs.errorMessage) {
 		return;
 	}
 
 	refs.errorMessage.innerHTML = `Esta transcripción ya se encuentra en tu biblioteca local.<br><br>
-		<div class="flex gap-2 mt-3">
-			<button type="button" data-action="history-load" data-id="${existingId}" class="px-3 py-1.5 bg-blue-100 text-blue-800 hover:bg-blue-200 font-semibold text-sm rounded shadow-sm transition-colors border border-blue-200">
-				Abrir desde Biblioteca
+		<div class="flex flex-wrap gap-2 mt-3">
+			<button type="button" data-action="history-load" data-id="${existingId}" class="px-3 py-1.5 bg-blue-100 text-blue-800 hover:bg-blue-200 font-semibold text-sm rounded shadow-sm transition-colors border border-blue-200 flex items-center gap-1">
+				<i data-lucide="book-open" class="w-4 h-4"></i> Abrir desde Biblioteca
 			</button>
-			<button type="button" data-action="execute-force-fetch" class="px-3 py-1.5 bg-red-100 text-red-800 hover:bg-red-200 font-semibold text-sm rounded shadow-sm transition-colors border border-red-200">
-				Re-analizar (Sobreescribir)
+			<button type="button" data-action="execute-force-fetch" class="px-3 py-1.5 bg-red-100 text-red-800 hover:bg-red-200 font-semibold text-sm rounded shadow-sm transition-colors border border-red-200 flex items-center gap-1">
+				<i data-lucide="refresh-cw" class="w-4 h-4"></i> Re-analizar (Sobreescribir)
+			</button>
+			<button type="button" data-action="pick-audio-duplicate" data-videoid="${videoId}" class="px-3 py-1.5 bg-purple-100 text-purple-800 hover:bg-purple-200 font-semibold text-sm rounded shadow-sm transition-colors border border-purple-200 flex items-center gap-1">
+				<i data-lucide="music" class="w-4 h-4"></i> Descargar Audio
 			</button>
 		</div>`;
+
+	rerenderIcons();
 }
 
 // ─── Modal Selector de Acción ────────────────────────────────────────────────
@@ -270,6 +277,28 @@ async function runTranscriptFlow(url, videoId) {
 
 	hideAudioPanel();
 
+	// Verificar si ya existe en el historial cuando el usuario pide Transcripción
+	if (!state.forceNextFetch) {
+		const history = getHistory();
+		const existing = history.find((item) => item.videoId === videoId);
+		if (existing) {
+			showDuplicateWarning(existing.id, videoId);
+			if (refs.errorState) {
+				refs.errorState.classList.remove("hidden");
+			}
+			if (refs.resultsContainer) {
+				refs.resultsContainer.classList.add("hidden");
+			}
+			if (refs.loadingState) {
+				refs.loadingState.classList.add("hidden");
+				refs.loadingState.classList.remove("flex");
+			}
+			return;
+		}
+	}
+
+	state.forceNextFetch = false;
+
 	if (refs.errorState) {
 		refs.errorState.classList.add("hidden");
 	}
@@ -395,32 +424,7 @@ async function handleTranscriptSubmit(event) {
 		return;
 	}
 
-	// Verificar duplicado antes de mostrar el picker
-	if (!state.forceNextFetch) {
-		const history = getHistory();
-		const existing = history.find((item) => item.videoId === videoId);
-		if (existing) {
-			showDuplicateWarning(existing.id);
-			if (refs.errorState) {
-				refs.errorState.classList.remove("hidden");
-			}
-
-			if (refs.resultsContainer) {
-				refs.resultsContainer.classList.add("hidden");
-			}
-
-			if (refs.loadingState) {
-				refs.loadingState.classList.add("hidden");
-				refs.loadingState.classList.remove("flex");
-			}
-
-			return;
-		}
-	}
-
-	state.forceNextFetch = false;
-
-	// Abrir modal de selección
+	// Abrir modal de selección (Transcripción vs Audio)
 	openActionPicker(videoId, url);
 }
 
@@ -564,6 +568,15 @@ async function handleGlobalClick(event) {
 
 			break;
 
+		case "pick-audio-duplicate":
+			if (actionNode.dataset.videoid) {
+				if (refs.errorState) {
+					refs.errorState.classList.add("hidden");
+				}
+				await runAudioFlow(actionNode.dataset.videoid);
+			}
+			break;
+
 		case "logout":
 			closeHeaderMenu();
 			logout();
@@ -676,6 +689,13 @@ async function initApp() {
 	document.addEventListener("keydown", handleKeyDown);
 	window.addEventListener("resize", scheduleHeaderOffsetSync);
 	window.addEventListener("load", scheduleHeaderOffsetSync);
+
+	if (window.ResizeObserver && refs.appHeader) {
+		const headerObserver = new ResizeObserver(() => {
+			syncHeaderOffset();
+		});
+		headerObserver.observe(refs.appHeader);
+	}
 
 	if (document.fonts && document.fonts.ready) {
 		document.fonts.ready.then(scheduleHeaderOffsetSync).catch(() => {
