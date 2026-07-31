@@ -146,13 +146,13 @@ export async function generateMetaWithAI(fullText, openRouterKey, googleKey) {
 
     const prompt = `Lee el siguiente texto (que puede ser el inicio de una transcripción más larga).
 Genera:
-1. Un título descriptivo.
-2. Un resumen breve y estructurado (puede ser un párrafo corto o viñetas) destacando los puntos principales.
+1. Un título descriptivo en texto plano.
+2. Un resumen estructurado y fácil de leer utilizando formato Markdown (usa viñetas con '- ', negritas '**concepto**' y saltos de línea dobles entre puntos).
 
-IMPORTANTE: Devuelve ÚNICAMENTE un objeto JSON válido con la siguiente estructura, sin formato markdown ni texto adicional:
+IMPORTANTE: Devuelve ÚNICAMENTE un objeto JSON válido con la siguiente estructura, sin formato extra fuera del JSON:
 {
   "title": "tu título aquí",
-  "summary": "tu resumen aquí"
+  "summary": "tu resumen aquí en formato Markdown"
 }
 
 Texto:

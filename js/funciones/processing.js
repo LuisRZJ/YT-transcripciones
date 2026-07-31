@@ -1,6 +1,7 @@
 import { refs, rerenderIcons } from "./dom.js";
 import { chunkText, formatChunkWithAI, generateMetaWithAI } from "./ai-processing.js";
 import { state, STORAGE_KEYS } from "./state.js";
+import { renderSummaryContent } from "./ui-actions.js";
 
 function buildAiErrorMessage(error) {
     const status = typeof error?.status === "number" ? error.status : null;
@@ -164,7 +165,7 @@ export async function processAndRender(data) {
         }
 
         if (refs.aiSummary) {
-            refs.aiSummary.textContent = state.finalAiData.summary;
+            renderSummaryContent(refs.aiSummary, state.finalAiData.summary);
         }
     } catch (aiError) {
         console.error("Error en IA Chunking:", aiError);

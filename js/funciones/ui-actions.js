@@ -107,3 +107,96 @@ export function executeForceFetch() {
         refs.submitBtn.click();
     }
 }
+
+/**
+ * Convierte un texto en Markdown a HTML seguro de forma bonita.
+ * Utiliza marked.js si está cargado globalmente o un parser ligero de respaldo.
+ * @param {string} markdownText 
+ * @returns {string} HTML renderizado
+ */
+export function renderMarkdown(markdownText) {
+    if (!markdownText || typeof markdownText !== "string") {
+        return "";
+    }
+
+    const raw = markdownText.trim();
+
+    if (window.marked && typeof window.marked.parse === "function") {
+        try {
+            return window.marked.parse(raw, { gfm: true, breaks: true });
+        } catch (err) {
+            console.warn("Error en marked.parse, usando parser fallback:", err);
+        }
+    }
+
+    let html = raw
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
+    html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+    html = html.replace(/__(.*?)__/g, "<strong>$1</strong>");
+    html = html.replace(/\*(.*?)\*/g, "<em>$1</em>");
+
+    const lines = html.split("\n");
+    let inList = false;
+    const processed = [];
+
+    for (const line of lines) {
+        const trimmed = line.trim();
+        if (/^[-*]\s+/.test(trimmed)) {
+            const content = trimmed.replace(/^[-*]\s+/, "");
+            if (!inList) {
+                processed.push('<ul class="list-disc pl-5 my-2 space-y-1">');
+                inList = true;
+            }
+            processed.push(`<li>${content}</li>`);
+        } else {
+            if (inList) {
+                processed.push("</ul>");
+                inList = false;
+            }
+            if (trimmed.length > 0) {
+                processed.push(`<p class="mb-2">${trimmed}</p>`);
+            }
+        }
+    }
+
+    if (inList) {
+        processed.push("</ul>");
+    }
+
+    return processed.join("\n");
+}
+
+/**
+ * Renderiza el Markdown en un elemento contenedor DOM.
+ * @param {HTMLElement} element 
+ * @param {string} markdownText 
+ */
+export function renderSummaryContent(element, markdownText) {
+    if (!element) {
+        return;
+    }
+    element.innerHTML = renderMarkdown(markdownText);
+}
+
+/**
+ * Elimina marcas de formato Markdown para obtener texto plano en previews.
+ * @param {string} markdownText 
+ * @returns {string} Texto plano
+ */
+export function stripMarkdown(markdownText) {
+    if (!markdownText || typeof markdownText !== "string") {
+        return "";
+    }
+
+    return markdownText
+        .replace(/\*\*(.*?)\*\*/g, "$1")
+        .replace(/__(.*?)__/g, "$1")
+        .replace(/\*(.*?)\*/g, "$1")
+        .replace(/^[-*]\s+/gm, "")
+        .replace(/#/g, "")
+        .trim();
+}
+

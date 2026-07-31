@@ -1,12 +1,11 @@
 import { RAPIDAPI_DOWNLOADER_HOST } from "./state.js";
 
 const RAPIDAPI_BASE = `https://${RAPIDAPI_DOWNLOADER_HOST}/api/v1`;
-const POLL_INTERVAL_MS = 2000;   // Intervalo de polling: 2 segundos
-const POLL_TIMEOUT_MS = 120000;  // Timeout máximo: 2 minutos
+const POLL_INTERVAL_MS = 3000;   // Intervalo de polling: 3 segundos (evita rate limits)
+const POLL_TIMEOUT_MS = 300000;  // Timeout máximo: 5 minutos (para videos largos)
 
 function buildHeaders(rapidApiKey) {
     return {
-        "Content-Type": "application/json",
         "x-rapidapi-host": RAPIDAPI_DOWNLOADER_HOST,
         "x-rapidapi-key": rapidApiKey
     };
@@ -31,7 +30,7 @@ async function startAudioDownloadJob(videoId, format, quality, rapidApiKey) {
         id: videoId,
         format,
         audioQuality: quality,
-        addInfo: "true",
+        addInfo: "false",
         allowExtendedDuration: "false"
     });
 
@@ -57,12 +56,13 @@ async function startAudioDownloadJob(videoId, format, quality, rapidApiKey) {
     }
 
     const data = await res.json();
+    const progressId = data.progressId || data.id || data.jobId;
 
-    if (!data.success || !data.progressId) {
-        throw new Error("RapidAPI: Respuesta inesperada. No se recibió un progressId válido.");
+    if (!progressId) {
+        throw new Error("RapidAPI: Respuesta inesperada. No se recibió un ID de proceso (progressId).");
     }
 
-    return { progressId: data.progressId, duration: data.duration ?? 0 };
+    return { progressId, duration: data.duration ?? 0 };
 }
 
 /**
@@ -75,7 +75,7 @@ async function pollAudioDownloadProgress(progressId, rapidApiKey, onProgress) {
 
     while (true) {
         if (Date.now() - startTime > POLL_TIMEOUT_MS) {
-            throw new Error("RapidAPI: El servidor tardó demasiado en procesar el audio. Intenta de nuevo.");
+            throw new Error("RapidAPI: El servidor tardó más de 5 minutos en convertir el video. Intenta de nuevo.");
         }
 
         await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
@@ -102,13 +102,16 @@ async function pollAudioDownloadProgress(progressId, rapidApiKey, onProgress) {
             continue;
         }
 
-        // Notificar progreso parcial
+        // Extraer progreso si viene como 0-100 o 0-1000
         if (typeof data.progress === "number" && typeof onProgress === "function") {
-            onProgress(Math.min(Math.round(data.progress), 99));
+            const pct = data.progress > 100 ? data.progress / 10 : data.progress;
+            onProgress(Math.min(Math.round(pct), 99));
         }
 
-        // Respuesta final con enlace de descarga
-        if (data.success && data.url) {
+        // Buscar URL final en múltiples posibles propiedades de respuesta RapidAPI
+        const downloadUrl = data.url || data.downloadUrl || data.link || data.download_url || data.result;
+
+        if (downloadUrl || data.status === "completed" || data.status === "done" || (data.success && downloadUrl)) {
             if (typeof onProgress === "function") {
                 onProgress(100);
             }
@@ -116,13 +119,19 @@ async function pollAudioDownloadProgress(progressId, rapidApiKey, onProgress) {
             const title = data.title
                 || data.info?.title
                 || data.videoTitle
+                || data.filename
                 || "audio_youtube";
 
             return {
-                url: data.url,
+                url: downloadUrl,
                 title,
                 duration: data.duration ?? 0
             };
+        }
+
+        // Si el estado es explícitamente fallido
+        if (data.status === "error" || data.status === "failed" || data.error) {
+            throw new Error(`RapidAPI: Error al convertir el audio. ${data.error || data.message || ""}`);
         }
     }
 }

@@ -1,7 +1,7 @@
 import { refs, rerenderIcons } from "./dom.js";
 import { state, STORAGE_KEYS } from "./state.js";
 import { extractVideoId } from "./youtube.js";
-import { showToast, switchTab } from "./ui-actions.js";
+import { renderSummaryContent, showToast, stripMarkdown, switchTab } from "./ui-actions.js";
 
 function escapeHtml(value) {
     return String(value ?? "")
@@ -137,7 +137,8 @@ export function renderHistoryList() {
 
     refs.historyListContainer.innerHTML = history.map((item) => {
         const safeTitle = escapeHtml(item.title || "Sin Título");
-        const safeSummary = escapeHtml(item.summary || "Sin resumen.");
+        const cleanSummary = stripMarkdown(item.summary || "Sin resumen.");
+        const safeSummary = escapeHtml(cleanSummary);
         const safeDate = escapeHtml(item.date || "");
 
         return `
@@ -202,7 +203,7 @@ export function loadFromHistory(id) {
     }
 
     if (refs.aiSummary) {
-        refs.aiSummary.textContent = state.finalAiData.summary;
+        renderSummaryContent(refs.aiSummary, state.finalAiData.summary);
     }
 
     if (refs.errorState) {
