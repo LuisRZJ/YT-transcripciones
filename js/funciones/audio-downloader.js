@@ -30,7 +30,7 @@ async function startAudioDownloadJob(videoId, format, quality, rapidApiKey) {
         id: videoId,
         format,
         audioQuality: quality,
-        addInfo: "false",
+        addInfo: "true",
         allowExtendedDuration: "false"
     });
 
@@ -62,15 +62,21 @@ async function startAudioDownloadJob(videoId, format, quality, rapidApiKey) {
         throw new Error("RapidAPI: Respuesta inesperada. No se recibió un ID de proceso (progressId).");
     }
 
-    return { progressId, duration: data.duration ?? 0 };
+    const initialTitle = data.title || data.info?.title || data.videoTitle || null;
+    const initialDuration = Number(data.duration || data.info?.duration || data.videoDuration || 0);
+
+    return { progressId, initialTitle, initialDuration };
 }
 
 /**
  * Paso 2: Hace polling hasta obtener el enlace final de descarga.
+ * @param {string} progressId
+ * @param {string} rapidApiKey
  * @param {function(number):void} onProgress - Callback con porcentaje 0-100
+ * @param {{initialTitle?: string, initialDuration?: number}} meta
  * @returns {Promise<{url: string, title: string, duration: number}>}
  */
-async function pollAudioDownloadProgress(progressId, rapidApiKey, onProgress) {
+async function pollAudioDownloadProgress(progressId, rapidApiKey, onProgress, meta = {}) {
     const startTime = Date.now();
 
     while (true) {
@@ -120,12 +126,17 @@ async function pollAudioDownloadProgress(progressId, rapidApiKey, onProgress) {
                 || data.info?.title
                 || data.videoTitle
                 || data.filename
-                || "audio_youtube";
+                || meta.initialTitle
+                || null;
+
+            const duration = Number(
+                data.duration || data.info?.duration || data.videoDuration || meta.initialDuration || 0
+            );
 
             return {
                 url: downloadUrl,
                 title,
-                duration: data.duration ?? 0
+                duration
             };
         }
 
@@ -167,8 +178,8 @@ export async function fetchAudioDownload(videoId, { format, quality, rapidApiKey
         onProgress(0);
     }
 
-    const { progressId } = await startAudioDownloadJob(videoId, format, quality, validKey);
-    const result = await pollAudioDownloadProgress(progressId, validKey, onProgress);
+    const { progressId, initialTitle, initialDuration } = await startAudioDownloadJob(videoId, format, quality, validKey);
+    const result = await pollAudioDownloadProgress(progressId, validKey, onProgress, { initialTitle, initialDuration });
 
     return result;
 }

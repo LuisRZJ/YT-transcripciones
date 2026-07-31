@@ -214,13 +214,18 @@ function showAudioReady(title, duration) {
 	}
 
 	if (refs.audioResultTitle) {
-		refs.audioResultTitle.textContent = title || "Audio descargado";
+		const format = localStorage.getItem(STORAGE_KEYS.audioFormat) || DEFAULT_AUDIO_FORMAT;
+		const cleanTitle = (title && title !== "audio_youtube") ? title : `Audio de YouTube (${format.toUpperCase()})`;
+		refs.audioResultTitle.textContent = cleanTitle;
 	}
 
 	if (refs.audioResultDuration) {
-		refs.audioResultDuration.textContent = duration > 0
-			? `Duración: ${formatDuration(duration)}`
-			: "Duración: —";
+		if (typeof duration === "number" && duration > 0) {
+			refs.audioResultDuration.textContent = `Duración: ${formatDuration(duration)}`;
+			refs.audioResultDuration.classList.remove("hidden");
+		} else {
+			refs.audioResultDuration.classList.add("hidden");
+		}
 	}
 
 	rerenderIcons();
