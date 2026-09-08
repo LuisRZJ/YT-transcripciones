@@ -3,6 +3,7 @@ import { state, STORAGE_KEYS } from "./state.js";
 import { normalizeOpenRouterKey } from "./api-client.js";
 import { showToast } from "./ui-actions.js";
 import { getHistory, openHistoryModal, renderHistoryList, saveHistory } from "./history.js";
+import { getFolders, saveFolders, getCategories, saveCategories } from "./taxonomy.js";
 
 let pendingCloudUpdates = [];
 
@@ -100,7 +101,7 @@ async function getCloudRestoreData(syncSecret) {
     }
 
     const listData = await listRes.json();
-    const cloudIds = (listData.fileIds || []).filter((id) => id !== "_api_keys");
+    const cloudIds = (listData.fileIds || []).filter((id) => id !== "_api_keys" && id !== "_taxonomy");
 
     if (cloudIds.length === 0) {
         return null;
@@ -280,11 +281,54 @@ export async function importFromCloud() {
             }
         }
 
-        const cloudIds = cloudIdsRaw;
+        // 1.5. Importar Taxonomía (Carpetas y Categorías)
+        const hasTaxonomyInCloud = cloudIdsRaw.includes("_taxonomy");
+        let taxonomyImported = false;
+        if (hasTaxonomyInCloud) {
+            try {
+                const taxRes = await fetch("/api/pull?id=_taxonomy", {
+                    headers: { Authorization: `Bearer ${syncSecret}` }
+                });
+                if (taxRes.ok) {
+                    const taxJson = await taxRes.json();
+                    const taxData = taxJson.data || {};
+
+                    if (Array.isArray(taxData.folders)) {
+                        const localFolders = getFolders();
+                        const mergedFolders = [...localFolders];
+                        for (const rf of taxData.folders) {
+                            if (!mergedFolders.some((lf) => lf.id === rf.id)) {
+                                mergedFolders.push(rf);
+                            }
+                        }
+                        saveFolders(mergedFolders);
+                    }
+
+                    if (Array.isArray(taxData.categories)) {
+                        const localCategories = getCategories();
+                        const mergedCategories = [...localCategories];
+                        for (const rc of taxData.categories) {
+                            if (!mergedCategories.some((lc) => lc.id === rc.id)) {
+                                mergedCategories.push(rc);
+                            }
+                        }
+                        saveCategories(mergedCategories);
+                    }
+                    taxonomyImported = true;
+                }
+            } catch (e) {
+                console.error("Error importando taxonomía desde la nube", e);
+            }
+        }
+
+        const cloudIds = cloudIdsRaw.filter((id) => id !== "_taxonomy");
 
         if (cloudIds.length === 0) {
             setImportUiState("Sin datos", false);
-            if (keysImported) {
+            if (taxonomyImported) {
+                renderHistoryList();
+                showToast("✓ Organización (carpetas/categorías) restaurada desde la nube.");
+            } else if (keysImported) {
                 showToast("Ajustes de IA restaurados, pero no hay transcripciones que importar.");
             } else {
                 showToast("La nube está vacía. No hay datos que importar.");
@@ -321,6 +365,8 @@ export async function importFromCloud() {
             localHistory.sort((a, b) => b.id - a.id);
             saveHistory(localHistory);
             renderHistoryList();
+        } else if (taxonomyImported) {
+            renderHistoryList();
         }
 
         if (overlap.length > 0) {
@@ -349,7 +395,11 @@ export async function importFromCloud() {
         setImportUiState("Listo", false);
 
         if (importedCount === 0 && newerInCloud.length === 0) {
-            if (keysImported) {
+            if (keysImported && taxonomyImported) {
+                showToast("✓ Ajustes y organización restaurados desde la nube.");
+            } else if (taxonomyImported) {
+                showToast("✓ Organización (carpetas/categorías) restaurada desde la nube.");
+            } else if (keysImported) {
                 showToast("✓ Todo está al día. Se restauraron ajustes de IA.");
             } else {
                 showToast("✓ Todo está al día. No hay datos nuevos en la nube.");
@@ -358,6 +408,9 @@ export async function importFromCloud() {
             let message = "";
             if (importedCount > 0) {
                 message += `${importedCount} transcripción(es) nuevas importadas. `;
+            }
+            if (taxonomyImported) {
+                message += "Organización restaurada. ";
             }
             if (keysImported) {
                 message += "Ajustes de IA restaurados.";
@@ -501,9 +554,36 @@ export async function backupToCloud() {
         console.error("Error subiendo claves API", e);
     }
 
+    // Respaldar Taxonomía (Carpetas y Categorías)
+    let taxonomyBackedUp = false;
+    try {
+        const localFolders = getFolders();
+        const localCategories = getCategories();
+        const taxRes = await fetch("/api/push", {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${syncSecret}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                videoId: "_taxonomy",
+                data: {
+                    folders: localFolders,
+                    categories: localCategories,
+                    updatedAt: Date.now()
+                }
+            })
+        });
+        if (taxRes.ok) {
+            taxonomyBackedUp = true;
+        }
+    } catch (e) {
+        console.error("Error subiendo taxonomía a la nube", e);
+    }
+
     if (pendingPush.length === 0) {
-        if (keysBackedUp) {
-            showToast("✓ Ajustes de IA respaldados exitosamente. Las transcripciones ya están al día.");
+        if (keysBackedUp || taxonomyBackedUp) {
+            showToast("✓ Ajustes y organización respaldados exitosamente. Las transcripciones ya están al día.");
         } else {
             showToast("✓ Todo está respaldado. No hay nada nuevo que subir.");
         }
@@ -537,6 +617,7 @@ export async function backupToCloud() {
         }
 
         saveHistory(localHistory);
+        renderHistoryList();
         setBackupUiState("¡Respaldado!", false);
         showToast(`${pendingPush.length} transcripción(es) respaldadas en la nube.`);
         setTimeout(() => setBackupUiState("Respaldar", false), 3000);

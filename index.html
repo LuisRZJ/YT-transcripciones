@@ -230,7 +230,27 @@
 
                     <!-- Resultados IA -->
                     <div id="aiResults" class="hidden">
-                        <h2 id="aiTitle" class="text-xl font-bold text-slate-900 mb-4 pr-40 leading-snug"></h2>
+                        <!-- Tarjeta de Metadatos y Miniatura del Video -->
+                        <div id="videoMetaPreview" class="hidden mb-4 bg-slate-50 border border-slate-200 rounded-xl p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4 transition-all pr-24 sm:pr-36">
+                            <div class="relative w-full sm:w-48 aspect-video bg-slate-900 rounded-lg overflow-hidden shrink-0 shadow-xs group">
+                                <img id="videoMetaThumbnail" src="" alt="Miniatura de YouTube" class="w-full h-full object-cover" />
+                                <a id="videoMetaLink" href="#" target="_blank" rel="noopener noreferrer" class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white gap-1.5 text-xs font-semibold">
+                                    <i data-lucide="youtube" class="w-4 h-4 text-red-500"></i> Ver en YouTube
+                                </a>
+                            </div>
+                            <div class="min-w-0 flex-1 w-full">
+                                <div class="flex items-center gap-2 flex-wrap mb-1.5">
+                                    <span id="videoMetaChannel" class="inline-flex items-center gap-1 text-xs font-semibold text-slate-700 bg-white px-2.5 py-0.5 rounded-full border border-slate-200 shadow-2xs">
+                                        <i data-lucide="user" class="w-3 h-3 text-slate-400"></i> <span id="videoMetaChannelText">—</span>
+                                    </span>
+                                    <span id="videoMetaIdBadge" class="text-xs font-mono text-slate-400"></span>
+                                </div>
+                                <h2 id="aiTitle" class="text-lg sm:text-xl font-bold text-slate-900 leading-snug break-words"></h2>
+                            </div>
+                        </div>
+
+                        <!-- Título alternativo de fallback cuando no hay metadatos de video -->
+                        <h2 id="aiTitleFallback" class="hidden text-xl font-bold text-slate-900 mb-4 pr-32 leading-snug"></h2>
                         <div id="plainTextOutput" class="p-5 bg-slate-100 border border-slate-300 rounded-lg text-slate-800 text-sm leading-relaxed whitespace-pre-wrap max-h-[400px] overflow-y-auto mb-4 font-sans">
                         </div>
                         <div class="bg-blue-100 border border-blue-300 rounded-lg p-4">
@@ -248,43 +268,111 @@
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Modal de Ajustes -->
-    <div id="settingsModal" class="hidden fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
-        <div class="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col transform scale-95 transition-transform duration-300">
-
-            <!-- Cabecera fija -->
-            <div class="flex justify-between items-center px-6 pt-6 pb-4 border-b border-slate-200 shrink-0">
-                <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
-                    <i data-lucide="settings" class="w-5 h-5 text-slate-600"></i> Ajustes
-                </h2>
-                <button type="button" data-action="close-settings-modal" class="text-slate-400 hover:text-slate-600 transition-colors">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
+        <!-- Panel de Control y Métricas de la Pantalla Principal -->
+        <div id="dashboardSection" class="space-y-6 mb-12">
+            <!-- 1. Grid de Métricas Generales -->
+            <div id="dashStatsGrid" class="grid grid-cols-2 md:grid-cols-4 gap-3.5 sm:gap-4">
+                <!-- Se inyecta dinámicamente desde dashboard.js -->
             </div>
 
-            <!-- Cuerpo scrollable -->
-            <div class="overflow-y-auto flex-1 min-h-0 px-6 py-5 space-y-5">
-
-                <!-- Supadata API Key -->
-                <div>
-                    <label for="modalApiKey" class="block text-sm font-semibold text-slate-800 mb-1">Supadata API Key</label>
-                    <div class="relative">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <i data-lucide="key" class="text-slate-500 w-5 h-5"></i>
+            <!-- 2. Acceso Rápido a Carpetas -->
+            <div id="dashFoldersCard" class="bg-white rounded-xl border border-slate-300 p-4 sm:p-5 shadow-xs">
+                <div class="flex items-center justify-between gap-3 mb-3.5 pb-2.5 border-b border-slate-100">
+                    <div class="flex items-center gap-2">
+                        <div class="w-7 h-7 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center">
+                            <i data-lucide="folder-open" class="w-4 h-4"></i>
                         </div>
-                        <input type="password" id="modalApiKey"
-                            class="block w-full pl-10 pr-3 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all text-sm"
-                            placeholder="Pega tu API Key aquí (ej. sp_...)">
+                        <h3 class="font-bold text-slate-900 text-sm sm:text-base">Acceso Rápido a Carpetas</h3>
+                    </div>
+                    <button type="button" data-action="open-create-folder-modal" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 font-semibold text-xs rounded-lg transition-colors">
+                        <i data-lucide="folder-plus" class="w-3.5 h-3.5"></i> Nueva Carpeta
+                    </button>
+                </div>
+                <div id="dashFoldersList" class="flex flex-wrap gap-2.5 items-center">
+                    <!-- Se inyecta dinámicamente desde dashboard.js -->
+                </div>
+            </div>
+
+            <!-- 3. Actividad Reciente -->
+            <div id="dashRecentCard" class="bg-white rounded-xl border border-slate-300 p-4 sm:p-5 shadow-xs">
+                <div class="flex items-center justify-between gap-3 mb-3.5 pb-2.5 border-b border-slate-100">
+                    <div class="flex items-center gap-2">
+                        <div class="w-7 h-7 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center">
+                            <i data-lucide="history" class="w-4 h-4"></i>
+                        </div>
+                        <h3 class="font-bold text-slate-900 text-sm sm:text-base">Transcripciones Recientes</h3>
+                    </div>
+                    <button type="button" data-action="open-history-modal" class="inline-flex items-center gap-1 text-blue-700 hover:text-blue-900 font-semibold text-xs transition-colors">
+                        Ver todas en Biblioteca <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+                <div id="dashRecentList" class="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                    <!-- Se inyecta dinámicamente desde dashboard.js -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vista / Pestaña Dedicada de Ajustes (Pantalla Completa) -->
+    <div id="settingsModal" class="hidden fixed inset-0 z-50 bg-slate-100 flex flex-col opacity-0 transition-opacity duration-200">
+        <!-- Barra Superior / Header de Ajustes -->
+        <header class="bg-white border-b border-slate-200 shrink-0 shadow-sm z-10">
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-2">
+                <div class="flex items-center gap-3">
+                    <button type="button" data-action="close-settings-modal" class="p-2 -ml-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-2" title="Volver a la aplicación">
+                        <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                        <span class="text-sm font-semibold hidden sm:inline">Volver</span>
+                    </button>
+                    <div class="h-5 w-px bg-slate-200 hidden sm:block"></div>
+                    <h2 class="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2.5">
+                        <i data-lucide="settings" class="w-5 h-5 text-blue-600"></i>
+                        <span>Ajustes</span>
+                    </h2>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button type="button" id="btnCheckUpdates" data-action="check-app-updates" class="px-3.5 py-2 text-slate-700 bg-slate-100 hover:bg-slate-200 font-medium rounded-lg transition-colors text-xs sm:text-sm flex items-center gap-2 border border-slate-300 shadow-sm" title="Buscar nuevas actualizaciones">
+                        <i id="iconCheckUpdates" data-lucide="refresh-cw" class="w-4 h-4"></i>
+                        <span id="txtCheckUpdates" class="hidden sm:inline">Buscar actualizaciones</span>
+                    </button>
+                    <button type="button" data-action="save-api-key" class="px-5 py-2 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg transition-colors text-sm flex items-center gap-2 shadow-sm">
+                        <i data-lucide="save" class="w-4 h-4"></i>
+                        <span>Guardar</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Contenido Central Scrollable -->
+        <main class="flex-1 overflow-y-auto min-h-0 w-full">
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+
+                <!-- Tarjeta 1: Supadata API Key -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 sm:p-6 space-y-3">
+                    <div class="flex items-center gap-2 border-b border-slate-100 pb-3">
+                        <i data-lucide="key" class="w-5 h-5 text-blue-600"></i>
+                        <h3 class="text-base font-bold text-slate-900">Transcripción (Supadata)</h3>
+                    </div>
+                    <div>
+                        <label for="modalApiKey" class="block text-sm font-semibold text-slate-800 mb-1">Supadata API Key</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i data-lucide="key" class="text-slate-500 w-5 h-5"></i>
+                            </div>
+                            <input type="password" id="modalApiKey"
+                                class="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all text-sm"
+                                placeholder="Pega tu API Key aquí (ej. sp_...)">
+                        </div>
+                        <p class="text-xs text-slate-500 mt-1.5">Requerida para la extracción de subtítulos y transcripciones de videos.</p>
                     </div>
                 </div>
 
-                <!-- Sección IA -->
-                <div class="border border-slate-200 rounded-xl p-4 bg-slate-50 space-y-4">
-                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                        <i data-lucide="sparkles" class="w-3.5 h-3.5 text-purple-500"></i> Proveedores de IA
-                    </p>
+                <!-- Tarjeta 2: Proveedores de IA -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 sm:p-6 space-y-5">
+                    <div class="flex items-center gap-2 border-b border-slate-100 pb-3">
+                        <i data-lucide="sparkles" class="w-5 h-5 text-purple-600"></i>
+                        <h3 class="text-base font-bold text-slate-900">Proveedores de Inteligencia Artificial</h3>
+                    </div>
 
                     <!-- OpenRouter API Key -->
                     <div>
@@ -294,7 +382,7 @@
                                 <i data-lucide="key" class="text-slate-500 w-5 h-5"></i>
                             </div>
                             <input type="password" id="modalOrApiKey"
-                                class="block w-full pl-10 pr-3 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all text-sm"
+                                class="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all text-sm"
                                 placeholder="Pega tu OpenRouter Key aquí (sk-or-...)">
                         </div>
                     </div>
@@ -307,27 +395,27 @@
                                 <i data-lucide="bot" class="text-slate-500 w-5 h-5"></i>
                             </div>
                             <input type="text" id="modalModelId"
-                                class="block w-full pl-10 pr-3 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all text-sm"
+                                class="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all text-sm"
                                 placeholder="deepseek/deepseek-v4-flash">
                         </div>
-                        <p class="text-xs text-slate-500 mt-1.5">Por defecto: <span class="font-mono">deepseek/deepseek-v4-flash</span></p>
+                        <p class="text-xs text-slate-500 mt-1.5">Por defecto: <span class="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-700">deepseek/deepseek-v4-flash</span></p>
                     </div>
 
                     <!-- Divisor -->
-                    <div class="border-t border-slate-200"></div>
+                    <div class="border-t border-slate-100"></div>
 
                     <!-- Google AI Studio API Key -->
                     <div>
-                        <label for="modalGoogleAiKey" class="block text-sm font-semibold text-slate-800 mb-1 flex items-center gap-1.5">
-                            Google AI Studio API Key
-                            <span class="text-xs font-normal text-slate-400 bg-slate-200 px-1.5 py-0.5 rounded-full">Modelo fijo: gemini-3.5-flash-lite</span>
+                        <label for="modalGoogleAiKey" class="block text-sm font-semibold text-slate-800 mb-1 flex items-center gap-1.5 flex-wrap">
+                            <span>Google AI Studio API Key</span>
+                            <span class="text-xs font-normal text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">Modelo fijo: gemini-3.5-flash-lite</span>
                         </label>
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                 <i data-lucide="key" class="text-slate-500 w-5 h-5"></i>
                             </div>
                             <input type="password" id="modalGoogleAiKey"
-                                class="block w-full pl-10 pr-3 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all text-sm"
+                                class="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all text-sm"
                                 placeholder="Pega tu clave de Google AI Studio (AIza...)">
                         </div>
                     </div>
@@ -340,7 +428,7 @@
                                 <i data-lucide="shuffle" class="text-slate-500 w-4 h-4"></i>
                             </div>
                             <select id="modalAiProviderSelect"
-                                class="block w-full pl-10 pr-3 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all text-sm bg-white appearance-none">
+                                class="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all text-sm bg-white">
                                 <option value="openrouter">OpenRouter (primario) → Google AI Studio (fallback)</option>
                                 <option value="google">Google AI Studio (primario) → OpenRouter (fallback)</option>
                             </select>
@@ -351,34 +439,38 @@
                     <p class="text-xs text-slate-500">Todas las claves de IA se guardan localmente en tu navegador y se incluyen en los respaldos nube.</p>
                 </div>
 
-                <!-- Sección Descargador de Audio -->
-                <div class="border border-slate-200 rounded-xl p-4 bg-slate-50 space-y-4">
-                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                        <i data-lucide="music" class="w-3.5 h-3.5 text-pink-500"></i> Descargador de Audio
-                    </p>
+                <!-- Tarjeta 3: Descargador de Audio -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 sm:p-6 space-y-5">
+                    <div class="flex items-center gap-2 border-b border-slate-100 pb-3">
+                        <i data-lucide="music" class="w-5 h-5 text-pink-600"></i>
+                        <h3 class="text-base font-bold text-slate-900">Descargador de Audio (RapidAPI)</h3>
+                    </div>
 
                     <!-- RapidAPI Key -->
                     <div>
-                        <label for="modalRapidApiKey" class="block text-sm font-semibold text-slate-800 mb-1 flex items-center gap-1.5">
-                            RapidAPI Key
-                            <a href="https://rapidapi.com/Opachi/api/youtube-mp4-mp3-downloader" target="_blank" rel="noopener" class="text-xs font-normal text-blue-600 hover:underline">Ver en RapidAPI →</a>
+                        <label for="modalRapidApiKey" class="block text-sm font-semibold text-slate-800 mb-1 flex items-center justify-between flex-wrap gap-1">
+                            <span>RapidAPI Key</span>
+                            <a href="https://rapidapi.com/Opachi/api/youtube-mp4-mp3-downloader" target="_blank" rel="noopener" class="text-xs font-medium text-blue-600 hover:underline flex items-center gap-1">
+                                <span>Ver en RapidAPI</span>
+                                <i data-lucide="external-link" class="w-3 h-3"></i>
+                            </a>
                         </label>
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                 <i data-lucide="key" class="text-slate-500 w-5 h-5"></i>
                             </div>
                             <input type="password" id="modalRapidApiKey"
-                                class="block w-full pl-10 pr-3 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-sm"
+                                class="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-sm"
                                 placeholder="Pega tu RapidAPI key aquí">
                         </div>
                     </div>
 
                     <!-- Formato y Calidad en fila -->
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label for="modalAudioFormat" class="block text-sm font-semibold text-slate-800 mb-1">Formato</label>
                             <select id="modalAudioFormat"
-                                class="block w-full px-3 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-sm bg-white">
+                                class="block w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-sm bg-white">
                                 <option value="mp3">MP3 (máx. compatible)</option>
                                 <option value="m4a">M4A (mejor calidad)</option>
                                 <option value="webm">WebM</option>
@@ -389,7 +481,7 @@
                         <div>
                             <label for="modalAudioQuality" class="block text-sm font-semibold text-slate-800 mb-1">Calidad (kbps)</label>
                             <select id="modalAudioQuality"
-                                class="block w-full px-3 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-sm bg-white">
+                                class="block w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-sm bg-white">
                                 <option value="128">128 kbps</option>
                                 <option value="192">192 kbps</option>
                                 <option value="256">256 kbps</option>
@@ -401,75 +493,315 @@
                     <p class="text-xs text-slate-500">El audio generado se descarga directamente a tu dispositivo. No se guarda en la biblioteca.</p>
                 </div>
 
-                <!-- Cloud Sync Secret -->
-                <div class="border-t border-slate-200 pt-4">
-                    <label for="modalSyncSecret" class="block text-sm font-bold text-slate-800 mb-1">🔐 Cloud Sync Secret (Vercel API)</label>
-                    <div class="relative">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <i data-lucide="lock" class="text-slate-500 w-5 h-5"></i>
+                <!-- Tarjeta 4: Cloud Sync Secret -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 sm:p-6 space-y-3">
+                    <div class="flex items-center gap-2 border-b border-slate-100 pb-3">
+                        <i data-lucide="cloud" class="w-5 h-5 text-emerald-600"></i>
+                        <h3 class="text-base font-bold text-slate-900">Sincronización en la Nube</h3>
+                    </div>
+                    <div>
+                        <label for="modalSyncSecret" class="block text-sm font-bold text-slate-800 mb-1">🔐 Cloud Sync Secret (Vercel API)</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i data-lucide="lock" class="text-slate-500 w-5 h-5"></i>
+                            </div>
+                            <input type="password" id="modalSyncSecret"
+                                class="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all text-sm"
+                                placeholder="Contraseña Vercel (necesaria para inicio de sesión y respaldo en la nube)">
                         </div>
-                        <input type="password" id="modalSyncSecret"
-                            class="block w-full pl-10 pr-3 py-2 border border-slate-400 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all text-sm"
-                            placeholder="Contraseña Vercel (Solo necesaria para Backup Nube)">
+                        <p class="text-xs text-slate-500 mt-1.5">Esta misma contraseña se usa para iniciar sesión y mantener tu respaldo seguro.</p>
                     </div>
                 </div>
 
-            </div>
+                <!-- Tarjeta 5: Zona de Peligro / Restablecer Claves -->
+                <div class="bg-white rounded-xl shadow-sm border border-red-200 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h4 class="text-sm font-bold text-red-700 flex items-center gap-1.5">
+                            <i data-lucide="alert-triangle" class="w-4 h-4"></i> Restablecer Claves
+                        </h4>
+                        <p class="text-xs text-slate-500 mt-1">Borra todas las claves API y credenciales guardadas localmente en este navegador.</p>
+                    </div>
+                    <button type="button" data-action="delete-api-key" class="text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 text-sm font-semibold px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5 shrink-0 self-start sm:self-auto">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        <span>Borrar Claves</span>
+                    </button>
+                </div>
 
-            <!-- Pie de página fijo -->
-            <div class="px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-xl flex items-center justify-between shrink-0">
-                <button type="button" data-action="delete-api-key" class="text-red-600 hover:text-red-800 text-sm font-medium px-3 py-2 rounded-lg hover:bg-red-50 transition-colors flex items-center gap-1">
-                    <i data-lucide="trash-2" class="w-4 h-4"></i> Borrar Claves
-                </button>
-                <div class="flex gap-2 flex-wrap justify-end">
-                    <button type="button" id="btnCheckUpdates" data-action="check-app-updates" class="px-4 py-2 text-slate-700 bg-slate-100 hover:bg-slate-200 font-medium rounded-lg transition-colors text-sm flex items-center gap-2 border border-slate-300">
-                        <i id="iconCheckUpdates" data-lucide="refresh-cw" class="w-4 h-4"></i>
-                        <span id="txtCheckUpdates">Buscar actualizaciones</span>
+            </div>
+        </main>
+    </div>
+
+    <!-- Vista / Pestaña Dedicada de Historial (Pantalla Completa) -->
+    <div id="historyModal" class="hidden fixed inset-0 z-50 bg-slate-100 flex flex-col opacity-0 transition-opacity duration-200">
+        <!-- Barra Superior / Header de Historial -->
+        <header class="bg-white border-b border-slate-200 shrink-0 shadow-sm z-10">
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <button type="button" data-action="close-history-modal" class="p-2 -ml-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-2" title="Volver a la aplicación">
+                        <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                        <span class="text-sm font-semibold hidden sm:inline">Volver</span>
                     </button>
-                    <button type="button" data-action="close-settings-modal" class="px-4 py-2 text-slate-600 bg-slate-100 hover:bg-slate-200 font-medium rounded-lg transition-colors text-sm">
-                        Cancelar
+                    <div class="h-5 w-px bg-slate-200 hidden sm:block"></div>
+                    <h2 class="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2.5">
+                        <i data-lucide="library" class="w-5 h-5 text-blue-600"></i>
+                        <span>Biblioteca de Transcripciones</span>
+                    </h2>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button type="button" id="btnBackupCloud" data-action="backup-to-cloud" class="px-3.5 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold rounded-lg transition-colors text-xs sm:text-sm flex items-center gap-1.5 border border-emerald-300 shadow-sm" title="Subir transcripciones y organización a la nube">
+                        <i id="iconBackup" data-lucide="cloud-upload" class="w-4 h-4"></i>
+                        <span id="txtBackup">Respaldar</span>
                     </button>
-                    <button type="button" data-action="save-api-key" class="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white font-medium rounded-lg transition-colors text-sm flex items-center gap-2">
-                        <i data-lucide="save" class="w-4 h-4"></i> Guardar
+                    <button type="button" id="btnImportCloud" data-action="import-from-cloud" class="px-3.5 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold rounded-lg transition-colors text-xs sm:text-sm flex items-center gap-1.5 border border-blue-200 shadow-sm" title="Verificar e importar datos desde la nube">
+                        <i id="iconImport" data-lucide="cloud-download" class="w-4 h-4"></i>
+                        <span id="txtImport">Importar</span>
                     </button>
                 </div>
             </div>
+        </header>
 
-        </div>
+        <!-- Contenido Central con Panel Lateral y Lista -->
+        <main class="flex-1 overflow-y-auto min-h-0 w-full">
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col lg:flex-row gap-6">
+
+                <!-- Columna Izquierda: Organización (Carpetas y Categorías) -->
+                <aside class="w-full lg:w-72 shrink-0 space-y-6">
+
+                    <!-- Bloque de Carpetas -->
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-3">
+                        <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+                            <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                                <i data-lucide="folder" class="w-4 h-4 text-blue-600"></i> Carpetas
+                            </h3>
+                            <button type="button" data-action="open-create-folder-modal" class="text-xs font-semibold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded transition-colors flex items-center gap-1" title="Crear nueva carpeta">
+                                <i data-lucide="plus" class="w-3.5 h-3.5"></i> Nueva
+                            </button>
+                        </div>
+
+                        <!-- Opciones Rápidas -->
+                        <div class="space-y-1">
+                            <button type="button" data-action="filter-folder" data-folder-id="all" id="btnFilterFolderAll" class="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold flex items-center justify-between transition-colors bg-blue-50 text-blue-700">
+                                <span class="flex items-center gap-2 truncate">
+                                    <i data-lucide="inbox" class="w-4 h-4 text-blue-600"></i> Todas
+                                </span>
+                                <span id="countFolderAll" class="text-xs px-2 py-0.5 rounded-full bg-blue-200/70 text-blue-800 font-bold">0</span>
+                            </button>
+                            <button type="button" data-action="filter-folder" data-folder-id="root" id="btnFilterFolderRoot" class="w-full text-left px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-between transition-colors text-slate-600 hover:bg-slate-50">
+                                <span class="flex items-center gap-2 truncate">
+                                    <i data-lucide="file-text" class="w-4 h-4 text-slate-400"></i> Sin carpeta
+                                </span>
+                                <span id="countFolderRoot" class="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-semibold">0</span>
+                            </button>
+                        </div>
+
+                        <!-- Lista Dinámica de Carpetas -->
+                        <div id="foldersNavContainer" class="space-y-1 pt-1 border-t border-slate-100 max-h-56 overflow-y-auto">
+                            <!-- Inyectado dinámicamente -->
+                        </div>
+                    </div>
+
+                    <!-- Bloque de Categorías -->
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-3">
+                        <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+                            <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                                <i data-lucide="tags" class="w-4 h-4 text-purple-600"></i> Categorías
+                            </h3>
+                            <button type="button" data-action="open-create-category-modal" class="text-xs font-semibold text-purple-600 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 px-2 py-1 rounded transition-colors flex items-center gap-1" title="Crear nueva categoría">
+                                <i data-lucide="plus" class="w-3.5 h-3.5"></i> Nueva
+                            </button>
+                        </div>
+
+                        <!-- Lista Dinámica de Categorías -->
+                        <div id="categoriesNavContainer" class="flex flex-wrap gap-1.5 max-h-56 overflow-y-auto">
+                            <!-- Inyectado dinámicamente -->
+                        </div>
+                    </div>
+
+                </aside>
+
+                <!-- Columna Derecha: Búsqueda, Filtros Activos y Lista de Transcripciones -->
+                <section class="flex-1 min-w-0 flex flex-col gap-4">
+
+                    <!-- Barra de Búsqueda y Filtros Activos -->
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-3 sm:p-4 space-y-3">
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                <i data-lucide="search" class="w-4 h-4"></i>
+                            </div>
+                            <input type="text" id="historySearchInput" placeholder="Buscar por título o contenido..." class="w-full pl-9 pr-8 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all">
+                            <button type="button" id="historySearchClear" class="hidden absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+
+                        <!-- Barra de filtros activos y conteo -->
+                        <div class="flex items-center justify-between flex-wrap gap-2 text-xs">
+                            <div id="activeFiltersBar" class="flex items-center gap-1.5 flex-wrap">
+                                <!-- Chips activos inyectados dinámicamente -->
+                            </div>
+                            <span id="historyItemCount" class="text-xs font-semibold text-slate-500">0 transcripciones</span>
+                        </div>
+                    </div>
+
+                    <!-- Lista de Tarjetas de Transcripción -->
+                    <div id="historyListContainer" class="flex flex-col gap-4 min-h-0">
+                        <!-- Tarjetas inyectadas dinámicamente -->
+                    </div>
+
+                </section>
+
+            </div>
+        </main>
     </div>
 
-    <!-- Modal de Historial -->
-    <div id="historyModal" class="hidden fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
-        <div class="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col transform scale-95 transition-transform duration-300">
-            <div class="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-xl shrink-0">
-                <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
-                    <i data-lucide="library" class="w-5 h-5 text-slate-600"></i> Mi Historial de Transcripciones
-                </h2>
-                <button type="button" data-action="close-history-modal" class="text-slate-400 hover:text-slate-600 transition-colors p-1 bg-white border border-slate-200 rounded-full hover:bg-slate-100 shadow-sm">
+    <!-- Modal Crear / Editar Carpeta -->
+    <div id="folderModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[65] flex items-center justify-center p-4 opacity-0 transition-opacity duration-200">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5">
+            <div class="flex justify-between items-center pb-3 border-b border-slate-100">
+                <h3 id="folderModalTitle" class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <i data-lucide="folder-plus" class="w-5 h-5 text-blue-600"></i>
+                    <span>Nueva Carpeta</span>
+                </h3>
+                <button type="button" data-action="close-folder-modal" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
 
-            <div id="historyListContainer" class="p-6 overflow-y-auto flex-1 bg-slate-100/50 flex flex-col gap-4 min-h-0">
-                <!-- Tarjetas generadas dinámicamente -->
-            </div>
+            <form id="folderForm" class="space-y-4">
+                <input type="hidden" id="folderIdInput" value="">
+                <div>
+                    <label for="folderNameInput" class="block text-sm font-semibold text-slate-800 mb-1">Nombre de la carpeta</label>
+                    <input type="text" id="folderNameInput" required placeholder="Ej. Cursos de IA, Podcasts..." class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none text-sm">
+                </div>
 
-            <div class="p-4 border-t border-slate-200 bg-white rounded-b-xl flex justify-between items-center shrink-0">
-                <span id="historyItemCount" class="text-sm font-medium text-slate-500">0 transcripciones guardadas</span>
-                <div class="flex gap-2 flex-wrap justify-end">
-                    <button type="button" id="btnBackupCloud" data-action="backup-to-cloud" class="px-4 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold rounded-lg transition-colors text-sm flex items-center gap-2 border border-emerald-300" title="Subir transcripciones no respaldadas a la nube">
-                        <i id="iconBackup" data-lucide="cloud-upload" class="w-4 h-4"></i>
-                        <span id="txtBackup">Respaldar</span>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-800 mb-2">Color identificativo</label>
+                    <div id="folderColorPicker" class="flex items-center gap-2.5 flex-wrap">
+                        <!-- Botones de colores inyectados dinámicamente -->
+                    </div>
+                    <input type="hidden" id="folderColorInput" value="blue">
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                    <button type="button" data-action="close-folder-modal" class="px-4 py-2 text-slate-600 bg-slate-100 hover:bg-slate-200 font-medium rounded-lg transition-colors text-sm">
+                        Cancelar
                     </button>
-                    <button type="button" id="btnImportCloud" data-action="import-from-cloud" class="px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold rounded-lg transition-colors text-sm flex items-center gap-2 border border-blue-200" title="Verificar e importar datos desde la nube">
-                        <i id="iconImport" data-lucide="cloud-download" class="w-4 h-4"></i>
-                        <span id="txtImport">Importar desde Nube</span>
-                    </button>
-                    <button type="button" data-action="close-history-modal" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-medium rounded-lg transition-colors text-sm">
-                        Cerrar
+                    <button type="submit" class="px-5 py-2 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg transition-colors text-sm flex items-center gap-2">
+                        <i data-lucide="save" class="w-4 h-4"></i> Guardar Carpeta
                     </button>
                 </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Crear / Editar Categoría -->
+    <div id="categoryModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[65] flex items-center justify-center p-4 opacity-0 transition-opacity duration-200">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5">
+            <div class="flex justify-between items-center pb-3 border-b border-slate-100">
+                <h3 id="categoryModalTitle" class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <i data-lucide="tag" class="w-5 h-5 text-purple-600"></i>
+                    <span>Nueva Categoría</span>
+                </h3>
+                <button type="button" data-action="close-category-modal" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
             </div>
+
+            <form id="categoryForm" class="space-y-4">
+                <input type="hidden" id="categoryIdInput" value="">
+                <div>
+                    <label for="categoryNameInput" class="block text-sm font-semibold text-slate-800 mb-1">Nombre de la categoría</label>
+                    <input type="text" id="categoryNameInput" required placeholder="Ej. Tutorial, Finanzas, Resumen..." class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-purple-600 outline-none text-sm">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-slate-800 mb-2">Color de la etiqueta</label>
+                    <div id="categoryColorPicker" class="flex items-center gap-2.5 flex-wrap">
+                        <!-- Botones de colores inyectados dinámicamente -->
+                    </div>
+                    <input type="hidden" id="categoryColorInput" value="purple">
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                    <button type="button" data-action="close-category-modal" class="px-4 py-2 text-slate-600 bg-slate-100 hover:bg-slate-200 font-medium rounded-lg transition-colors text-sm">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="px-5 py-2 bg-purple-700 hover:bg-purple-800 text-white font-semibold rounded-lg transition-colors text-sm flex items-center gap-2">
+                        <i data-lucide="save" class="w-4 h-4"></i> Guardar Categoría
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación de Borrado de Carpeta con Casos Límite -->
+    <div id="deleteFolderConfirmModal" class="hidden fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[70] flex items-center justify-center p-4 opacity-0 transition-opacity duration-200">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+            <div class="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto">
+                <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900 text-center">¿Eliminar carpeta?</h3>
+            <p id="deleteFolderPromptMsg" class="text-sm text-slate-600 text-center leading-relaxed">
+                Esta carpeta contiene transcripciones. Elige qué deseas hacer con ellas:
+            </p>
+            <input type="hidden" id="deleteTargetFolderId" value="">
+
+            <div class="space-y-2.5 pt-2">
+                <button type="button" data-action="confirm-delete-folder-keep" class="w-full px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 font-semibold rounded-lg transition-colors text-sm flex items-center justify-center gap-2 text-left">
+                    <i data-lucide="folder-minus" class="w-4 h-4 shrink-0"></i>
+                    <span>Solo eliminar carpeta (Conservar transcripciones en "Sin carpeta")</span>
+                </button>
+                <button type="button" data-action="confirm-delete-folder-purge" class="w-full px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-colors text-sm flex items-center justify-center gap-2">
+                    <i data-lucide="trash-2" class="w-4 h-4 shrink-0"></i>
+                    <span>Eliminar carpeta y todas sus transcripciones</span>
+                </button>
+                <button type="button" data-action="close-delete-folder-modal" class="w-full px-4 py-2 text-slate-600 hover:bg-slate-100 font-medium rounded-lg transition-colors text-sm">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Asignar / Organizar Transcripción -->
+    <div id="assignModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[65] flex items-center justify-center p-4 opacity-0 transition-opacity duration-200">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5">
+            <div class="flex justify-between items-center pb-3 border-b border-slate-100">
+                <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <i data-lucide="folder-cog" class="w-5 h-5 text-blue-600"></i>
+                    <span>Organizar Transcripción</span>
+                </h3>
+                <button type="button" data-action="close-assign-modal" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="assignForm" class="space-y-4">
+                <input type="hidden" id="assignTranscriptId" value="">
+                <p id="assignTranscriptTitle" class="text-xs font-semibold text-slate-700 truncate bg-slate-50 p-2 rounded border border-slate-200"></p>
+
+                <div>
+                    <label for="assignFolderSelect" class="block text-sm font-semibold text-slate-800 mb-1">Mover a Carpeta</label>
+                    <select id="assignFolderSelect" class="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none text-sm bg-white">
+                        <option value="">(Sin carpeta / Raíz)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-slate-800 mb-2">Categorías asignadas</label>
+                    <div id="assignCategoriesChecklist" class="space-y-1.5 max-h-48 overflow-y-auto p-2 border border-slate-200 rounded-lg bg-slate-50">
+                        <!-- Checkboxes generados dinámicamente -->
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                    <button type="button" data-action="close-assign-modal" class="px-4 py-2 text-slate-600 bg-slate-100 hover:bg-slate-200 font-medium rounded-lg transition-colors text-sm">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="px-5 py-2 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg transition-colors text-sm flex items-center gap-2">
+                        <i data-lucide="check" class="w-4 h-4"></i> Guardar Cambios
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 

@@ -11,6 +11,8 @@ export const STORAGE_KEYS = {
     vercelSyncSecret: "vercel_sync_secret",
     sessionExpiry: "session_expiry",
     history: "saved_transcripts_history",
+    folders: "saved_transcripts_folders",
+    categories: "saved_transcripts_categories",
     appVersion: "app_version",
     appLastVersionCheckAt: "app_last_version_check_at"
 };
@@ -27,6 +29,13 @@ export const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 días en ms
 export const state = {
     currentTab: "text",
     currentData: null,
+    currentMetadata: {
+        videoId: null,
+        title: null,
+        authorName: null,
+        authorUrl: null,
+        thumbnailUrl: null
+    },
     finalAiData: {
         title: "",
         summary: "",

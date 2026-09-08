@@ -1,6 +1,6 @@
 import { refs, rerenderIcons } from "./funciones/dom.js";
 import { state, STORAGE_KEYS, DEFAULT_AUDIO_FORMAT, DEFAULT_AUDIO_QUALITY } from "./funciones/state.js";
-import { extractVideoId } from "./funciones/youtube.js";
+import { extractVideoId, fetchYouTubeMetadata } from "./funciones/youtube.js";
 import { fetchSupadataTranscript } from "./funciones/api-client.js";
 import { processAndRender } from "./funciones/processing.js";
 import { copyContent, downloadContent, executeForceFetch, showToast, switchTab } from "./funciones/ui-actions.js";
@@ -12,8 +12,28 @@ import {
 	getHistory,
 	loadFromHistory,
 	openHistoryModal,
-	saveTranscript
+	saveTranscript,
+	renderHistoryList,
+	setFolderFilter,
+	setCategoryFilter,
+	setSearchQuery,
+	clearAllFilters,
+	openFolderModal,
+	closeFolderModal,
+	handleFolderFormSubmit,
+	openCategoryModal,
+	closeCategoryModal,
+	handleCategoryFormSubmit,
+	promptDeleteFolder,
+	confirmDeleteFolder,
+	closeDeleteFolderModal,
+	openAssignModal,
+	closeAssignModal,
+	handleAssignFormSubmit,
+	openHistoryModalWithFolder
 } from "./funciones/history.js";
+import { renderDashboard } from "./funciones/dashboard.js";
+import { deleteCategory } from "./funciones/taxonomy.js";
 import {
 	applyAllCloudUpdates,
 	backupToCloud,
@@ -317,8 +337,31 @@ async function runTranscriptFlow(url, videoId) {
 	}
 
 	try {
-		const data = await fetchSupadataTranscript(url, apiKey);
+		// Ejecución simultánea: transcripción de Supadata + metadatos y miniatura oficial (sin cuota)
+		const [transcriptResult, youtubeMetaResult] = await Promise.allSettled([
+			fetchSupadataTranscript(url, apiKey),
+			fetchYouTubeMetadata(videoId)
+		]);
+
+		if (transcriptResult.status === "rejected") {
+			throw transcriptResult.reason;
+		}
+
+		const data = transcriptResult.value;
 		state.currentData = data;
+
+		if (youtubeMetaResult.status === "fulfilled" && youtubeMetaResult.value) {
+			state.currentMetadata = youtubeMetaResult.value;
+		} else {
+			state.currentMetadata = {
+				videoId,
+				title: null,
+				authorName: null,
+				authorUrl: null,
+				thumbnailUrl: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
+			};
+		}
+
 		await processAndRender(data);
 	} catch (error) {
 		if (refs.errorMessage) {
@@ -538,6 +581,118 @@ async function handleGlobalClick(event) {
 			}
 
 			break;
+
+		// ── Organización: Carpetas y Categorías ───────────────────────────
+		case "open-create-folder-modal":
+			openFolderModal();
+			break;
+		case "open-edit-folder-modal":
+			if (actionNode.dataset.id) {
+				openFolderModal(actionNode.dataset.id);
+			}
+			break;
+		case "delete-folder-prompt":
+			if (actionNode.dataset.id) {
+				promptDeleteFolder(actionNode.dataset.id);
+			}
+			break;
+		case "close-folder-modal":
+			closeFolderModal();
+			break;
+		case "open-create-category-modal":
+			openCategoryModal();
+			break;
+		case "open-edit-category-modal":
+			if (actionNode.dataset.id) {
+				openCategoryModal(actionNode.dataset.id);
+			}
+			break;
+		case "delete-category":
+			if (actionNode.dataset.id) {
+				deleteCategory(actionNode.dataset.id);
+				renderHistoryList();
+				showToast("Categoría eliminada.");
+			}
+			break;
+		case "close-category-modal":
+			closeCategoryModal();
+			break;
+		case "confirm-delete-folder-keep":
+			confirmDeleteFolder("keep-items");
+			break;
+		case "confirm-delete-folder-purge":
+			confirmDeleteFolder("delete-items");
+			break;
+		case "close-delete-folder-modal":
+			closeDeleteFolderModal();
+			break;
+		case "history-organize":
+			if (actionNode.dataset.id) {
+				openAssignModal(actionNode.dataset.id);
+			}
+			break;
+		case "close-assign-modal":
+			closeAssignModal();
+			break;
+		case "filter-folder":
+			if (actionNode.dataset.folderId) {
+				setFolderFilter(actionNode.dataset.folderId);
+			}
+			break;
+		case "filter-category":
+			if (actionNode.dataset.categoryId) {
+				setCategoryFilter(actionNode.dataset.categoryId);
+			}
+			break;
+		case "clear-folder-filter":
+			setFolderFilter("all");
+			break;
+		case "clear-category-filter":
+			setCategoryFilter(null);
+			break;
+		case "clear-search-filter":
+			setSearchQuery("");
+			break;
+		case "clear-all-filters":
+			clearAllFilters();
+			break;
+		case "dash-open-history":
+			openHistoryModal();
+			break;
+		case "dash-open-folder":
+			if (actionNode.dataset.id) {
+				openHistoryModalWithFolder(actionNode.dataset.id);
+			}
+			break;
+		case "dash-load-recent":
+			if (actionNode.dataset.id) {
+				loadFromHistory(actionNode.dataset.id);
+			}
+			break;
+		case "dash-backup-now":
+			await backupToCloud();
+			renderDashboard();
+			break;
+		case "select-color": {
+			const targetId = actionNode.dataset.colorTarget;
+			const colorId = actionNode.dataset.colorId;
+			const targetInput = document.getElementById(targetId);
+			if (targetInput) {
+				targetInput.value = colorId;
+			}
+			const picker = actionNode.parentElement;
+			if (picker) {
+				Array.from(picker.children).forEach((btn) => {
+					const isSelected = btn.dataset.colorId === colorId;
+					const bgClass = (btn.className.match(/\bbg-[a-z]+-[0-9]+\b/) || [""])[0];
+					btn.className = `w-7 h-7 rounded-full ${bgClass} transition-all border-2 ${
+						isSelected ? "border-slate-900 scale-110 shadow-md ring-2 ring-blue-400 ring-offset-1" : "border-transparent hover:scale-105"
+					}`;
+				});
+			}
+			break;
+		}
+
 		case "cloud-updates-apply":
 			applyAllCloudUpdates();
 			break;
@@ -636,6 +791,7 @@ async function handleLoginSubmit(event) {
 
 	try {
 		await loginWithSecret(secret);
+		renderDashboard();
 		showToast("¡Sesión iniciada! Válida por 7 días.");
 
 		// Verificar inmediatamente datos de la nube con la clave introducida
@@ -669,6 +825,37 @@ function handleKeyDown(event) {
 		return;
 	}
 
+	if (refs.settingsModal && !refs.settingsModal.classList.contains("hidden")) {
+		closeSettingsModal();
+		return;
+	}
+
+	// Sub-modales de organización dentro de la biblioteca
+	if (refs.assignModal && !refs.assignModal.classList.contains("hidden")) {
+		closeAssignModal();
+		return;
+	}
+
+	if (refs.deleteFolderConfirmModal && !refs.deleteFolderConfirmModal.classList.contains("hidden")) {
+		closeDeleteFolderModal();
+		return;
+	}
+
+	if (refs.categoryModal && !refs.categoryModal.classList.contains("hidden")) {
+		closeCategoryModal();
+		return;
+	}
+
+	if (refs.folderModal && !refs.folderModal.classList.contains("hidden")) {
+		closeFolderModal();
+		return;
+	}
+
+	if (refs.historyModal && !refs.historyModal.classList.contains("hidden")) {
+		closeHistoryModal();
+		return;
+	}
+
 	closeActionPicker();
 	closeHeaderMenu();
 }
@@ -683,6 +870,24 @@ async function initApp() {
 
 	if (refs.form) {
 		refs.form.addEventListener("submit", handleTranscriptSubmit);
+	}
+
+	if (refs.folderForm) {
+		refs.folderForm.addEventListener("submit", handleFolderFormSubmit);
+	}
+
+	if (refs.categoryForm) {
+		refs.categoryForm.addEventListener("submit", handleCategoryFormSubmit);
+	}
+
+	if (refs.assignForm) {
+		refs.assignForm.addEventListener("submit", handleAssignFormSubmit);
+	}
+
+	if (refs.historySearchInput) {
+		refs.historySearchInput.addEventListener("input", (e) => {
+			setSearchQuery(e.target.value);
+		});
 	}
 
 	document.addEventListener("click", handleGlobalClick);
@@ -708,6 +913,7 @@ async function initApp() {
 	// Guard de Autenticación
 	if (isSessionValid()) {
 		showMainApp();
+		renderDashboard();
 		await checkCloudOnPageLoad();
 	} else {
 		showLoginView();

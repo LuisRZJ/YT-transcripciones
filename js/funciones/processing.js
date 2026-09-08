@@ -160,6 +160,8 @@ export async function processAndRender(data) {
             refs.aiTitle.textContent = state.finalAiData.title;
         }
 
+        renderVideoMetaPreview(state.currentMetadata);
+
         if (refs.plainTextOutput) {
             refs.plainTextOutput.textContent = state.finalAiData.formattedText;
         }
@@ -193,10 +195,60 @@ export async function processAndRender(data) {
     }
 }
 
+export function renderVideoMetaPreview(meta) {
+    if (!refs.videoMetaPreview) {
+        return;
+    }
+
+    const videoId = meta?.videoId;
+    const hasValidVideo = videoId && videoId !== "unknown";
+    const thumbUrl = meta?.thumbnailUrl || (hasValidVideo ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : null);
+
+    if (thumbUrl) {
+        if (refs.videoMetaThumbnail) {
+            refs.videoMetaThumbnail.src = thumbUrl;
+            refs.videoMetaThumbnail.alt = meta?.title || "Miniatura del video";
+            refs.videoMetaThumbnail.onerror = () => {
+                if (hasValidVideo) {
+                    refs.videoMetaThumbnail.src = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+                }
+            };
+        }
+
+        if (refs.videoMetaLink && hasValidVideo) {
+            refs.videoMetaLink.href = `https://www.youtube.com/watch?v=${videoId}`;
+            refs.videoMetaLink.classList.remove("hidden");
+        } else if (refs.videoMetaLink) {
+            refs.videoMetaLink.classList.add("hidden");
+        }
+
+        if (refs.videoMetaChannelText) {
+            refs.videoMetaChannelText.textContent = meta?.authorName || "YouTube Video";
+        }
+
+        if (refs.videoMetaIdBadge) {
+            refs.videoMetaIdBadge.textContent = hasValidVideo ? `ID: ${videoId}` : "";
+        }
+
+        refs.videoMetaPreview.classList.remove("hidden");
+        if (refs.aiTitleFallback) {
+            refs.aiTitleFallback.classList.add("hidden");
+        }
+    } else {
+        refs.videoMetaPreview.classList.add("hidden");
+        if (refs.aiTitleFallback) {
+            refs.aiTitleFallback.classList.remove("hidden");
+            refs.aiTitleFallback.textContent = state.finalAiData.title || "Transcripción procesada";
+        }
+    }
+}
+
 export function showRawFallback(text, message) {
     if (refs.aiTitle) {
         refs.aiTitle.textContent = "Transcripción Original";
     }
+
+    renderVideoMetaPreview(state.currentMetadata);
 
     if (refs.plainTextOutput) {
         refs.plainTextOutput.textContent = text;

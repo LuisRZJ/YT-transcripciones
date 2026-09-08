@@ -1,4 +1,4 @@
-import { refs } from "./dom.js";
+import { refs, rerenderIcons } from "./dom.js";
 import { STORAGE_KEYS, DEFAULT_AUDIO_FORMAT, DEFAULT_AUDIO_QUALITY } from "./state.js";
 import { normalizeOpenRouterKey } from "./api-client.js";
 import { showToast } from "./ui-actions.js";
@@ -62,11 +62,8 @@ export function openSettingsModal() {
     refs.settingsModal.classList.remove("hidden");
     setTimeout(() => {
         refs.settingsModal.classList.remove("opacity-0");
-        const panel = refs.settingsModal.querySelector("div");
-        if (panel) {
-            panel.classList.remove("scale-95");
-        }
     }, 10);
+    rerenderIcons();
 }
 
 export function closeSettingsModal() {
@@ -75,14 +72,9 @@ export function closeSettingsModal() {
     }
 
     refs.settingsModal.classList.add("opacity-0");
-    const panel = refs.settingsModal.querySelector("div");
-    if (panel) {
-        panel.classList.add("scale-95");
-    }
-
     setTimeout(() => {
         refs.settingsModal.classList.add("hidden");
-    }, 300);
+    }, 200);
 }
 
 export function saveApiKey(onSyncSecretChanged) {
