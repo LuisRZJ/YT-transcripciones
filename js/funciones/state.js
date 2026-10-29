@@ -42,6 +42,14 @@ export const state = {
         formattedText: ""
     },
     forceNextFetch: false,
+    syncStatus: {
+        isSyncing: false,
+        isChecking: false,
+        pendingPushCount: 0,
+        pendingPullCount: 0,
+        currentStep: "",
+        lastCheckedAt: null
+    },
     cloudRestore: {
         isVisible: false,
         missingCount: 0,

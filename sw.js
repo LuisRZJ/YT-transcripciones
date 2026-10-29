@@ -1,6 +1,6 @@
 const NETWORK_TIMEOUT_MS = 5000;
-const PRECACHE_CACHE_NAME = "yt-transcripciones-precache-v1";
-const RUNTIME_CACHE_NAME = "yt-transcripciones-runtime-v1";
+const PRECACHE_CACHE_NAME = "yt-transcripciones-precache-v2";
+const RUNTIME_CACHE_NAME = "yt-transcripciones-runtime-v2";
 
 const PRECACHE_URLS = [
     "/",
@@ -18,6 +18,10 @@ const PRECACHE_URLS = [
     "/js/funciones/cloud-sync.js",
     "/js/funciones/ai-processing.js",
     "/js/funciones/sw-manager.js",
+    "/js/funciones/audio-downloader.js",
+    "/js/funciones/auth.js",
+    "/js/funciones/dashboard.js",
+    "/js/funciones/taxonomy.js",
     "/manifest.webmanifest",
     "/version.json",
     "/icons/icon-192.svg",

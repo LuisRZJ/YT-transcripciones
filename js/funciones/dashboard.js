@@ -1,7 +1,7 @@
 import { refs, rerenderIcons, byId } from "./dom.js";
 import { getHistory } from "./history.js";
 import { getFolders, getCategories, countTranscriptsInFolder, getColorConfig } from "./taxonomy.js";
-import { STORAGE_KEYS } from "./state.js";
+import { STORAGE_KEYS, state } from "./state.js";
 
 function escapeHtml(value) {
     return String(value ?? "")
@@ -22,6 +22,10 @@ export function renderDashboard() {
     const categories = getCategories();
     const hasSyncSecret = Boolean(localStorage.getItem(STORAGE_KEYS.vercelSyncSecret));
     const pendingPushCount = allTranscripts.filter((t) => !t.synced && t.videoId !== "unknown").length;
+    const pendingPullCount = state.syncStatus?.pendingPullCount || 0;
+    const isSyncing = Boolean(state.syncStatus?.isSyncing);
+    const isChecking = Boolean(state.syncStatus?.isChecking);
+    const currentStep = state.syncStatus?.currentStep || "Procesando...";
     const organizedCount = allTranscripts.filter((t) => t.folderId).length;
 
     // ─── 1. Grid de Métricas Generales ──────────────────────────────────────────
@@ -44,9 +48,76 @@ export function renderDashboard() {
                     </div>
                 </div>
             `;
-        } else if (pendingPushCount > 0) {
+        } else if (isSyncing) {
             syncCardContent = `
-                <div data-action="backup-cloud" class="bg-white rounded-xl border border-amber-300 bg-amber-50/40 p-4 shadow-2xs hover:shadow-xs hover:border-amber-400 transition-all cursor-pointer flex flex-col justify-between group">
+                <div class="bg-white rounded-xl border border-blue-300 bg-blue-50/50 p-4 shadow-2xs transition-all flex flex-col justify-between select-none">
+                    <div class="flex items-center justify-between gap-2 mb-2">
+                        <span class="text-xs font-semibold text-blue-800 uppercase tracking-wider">Copia Nube</span>
+                        <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center">
+                            <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="text-base sm:text-lg font-bold text-blue-900 truncate">Sincronizando...</div>
+                        <p class="text-xs text-blue-700 font-medium mt-0.5 truncate" title="${escapeHtml(currentStep)}">${escapeHtml(currentStep)}</p>
+                    </div>
+                </div>
+            `;
+        } else if (isChecking) {
+            syncCardContent = `
+                <div class="bg-white rounded-xl border border-blue-200 bg-blue-50/30 p-4 shadow-2xs transition-all flex flex-col justify-between select-none">
+                    <div class="flex items-center justify-between gap-2 mb-2">
+                        <span class="text-xs font-semibold text-blue-800 uppercase tracking-wider">Copia Nube</span>
+                        <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center">
+                            <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="text-base sm:text-lg font-bold text-blue-900">Comprobando...</div>
+                        <p class="text-xs text-blue-600 font-medium mt-0.5">Verificando nube</p>
+                    </div>
+                </div>
+            `;
+        } else if (pendingPushCount > 0 && pendingPullCount > 0) {
+            // Caso Mixto: pendientes tanto de subida como de bajada
+            syncCardContent = `
+                <div data-action="sync-now" class="bg-white rounded-xl border border-indigo-300 bg-indigo-50/40 p-4 shadow-2xs hover:shadow-xs hover:border-indigo-400 transition-all cursor-pointer flex flex-col justify-between group" title="Sincronizar cambios locales y de la nube">
+                    <div class="flex items-center justify-between gap-2 mb-2">
+                        <span class="text-xs font-semibold text-indigo-800 uppercase tracking-wider">Copia Nube</span>
+                        <div class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="text-xl sm:text-2xl font-black text-indigo-900">${pendingPushCount + pendingPullCount}</div>
+                        <p class="text-xs text-indigo-700 font-semibold mt-0.5 flex items-center gap-1">
+                            ${pendingPushCount} subir · ${pendingPullCount} bajar <i data-lucide="arrow-up-right" class="w-3 h-3"></i>
+                        </p>
+                    </div>
+                </div>
+            `;
+        } else if (pendingPullCount > 0) {
+            // Caso Solo Descarga: faltan elementos en el navegador actual
+            syncCardContent = `
+                <div data-action="sync-now" class="bg-white rounded-xl border border-sky-300 bg-sky-50/40 p-4 shadow-2xs hover:shadow-xs hover:border-sky-400 transition-all cursor-pointer flex flex-col justify-between group" title="Descargar transcripciones faltantes de la nube">
+                    <div class="flex items-center justify-between gap-2 mb-2">
+                        <span class="text-xs font-semibold text-sky-800 uppercase tracking-wider">Copia Nube</span>
+                        <div class="w-8 h-8 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <i data-lucide="cloud-download" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="text-xl sm:text-2xl font-black text-sky-900">${pendingPullCount}</div>
+                        <p class="text-xs text-sky-700 font-semibold mt-0.5 flex items-center gap-1">
+                            ${pendingPullCount === 1 ? "Descargar 1 pendiente" : `Descargar ${pendingPullCount} pendientes`} <i data-lucide="arrow-down" class="w-3 h-3"></i>
+                        </p>
+                    </div>
+                </div>
+            `;
+        } else if (pendingPushCount > 0) {
+            // Caso Solo Subida: elementos locales no respaldados
+            syncCardContent = `
+                <div data-action="sync-now" class="bg-white rounded-xl border border-amber-300 bg-amber-50/40 p-4 shadow-2xs hover:shadow-xs hover:border-amber-400 transition-all cursor-pointer flex flex-col justify-between group" title="Respaldar transcripciones locales en la nube">
                     <div class="flex items-center justify-between gap-2 mb-2">
                         <span class="text-xs font-semibold text-amber-800 uppercase tracking-wider">Copia Nube</span>
                         <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -56,22 +127,26 @@ export function renderDashboard() {
                     <div>
                         <div class="text-xl sm:text-2xl font-black text-amber-900">${pendingPushCount}</div>
                         <p class="text-xs text-amber-700 font-semibold mt-0.5 flex items-center gap-1">
-                            Respaldar ahora <i data-lucide="arrow-up-right" class="w-3 h-3"></i>
+                            ${pendingPushCount === 1 ? "Respaldar 1 pendiente" : `Respaldar ${pendingPushCount} pendientes`} <i data-lucide="arrow-up-right" class="w-3 h-3"></i>
                         </p>
                     </div>
                 </div>
             `;
         } else {
+            // Caso Al Día: interactivo, permite hacer clic para verificar/sincronizar
             syncCardContent = `
-                <div data-action="backup-cloud" class="bg-white rounded-xl border border-emerald-200 bg-emerald-50/30 p-4 shadow-2xs hover:shadow-xs transition-all cursor-pointer flex flex-col justify-between">
+                <div data-action="sync-now" class="bg-white rounded-xl border border-emerald-200 bg-emerald-50/30 p-4 shadow-2xs hover:shadow-xs hover:border-emerald-300 transition-all cursor-pointer flex flex-col justify-between group" title="Al día. Haz clic para comprobar y sincronizar con la nube.">
                     <div class="flex items-center justify-between gap-2 mb-2">
                         <span class="text-xs font-semibold text-emerald-800 uppercase tracking-wider">Copia Nube</span>
-                        <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                        <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center group-hover:scale-110 transition-transform">
                             <i data-lucide="cloud-check" class="w-4 h-4"></i>
                         </div>
                     </div>
                     <div>
-                        <div class="text-base sm:text-lg font-bold text-emerald-800">Al día</div>
+                        <div class="text-base sm:text-lg font-bold text-emerald-800 flex items-center gap-1.5">
+                            <span>Al día</span>
+                            <i data-lucide="refresh-cw" class="w-3 h-3 text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                        </div>
                         <p class="text-xs text-emerald-600 font-medium mt-0.5">Sincronizado</p>
                     </div>
                 </div>

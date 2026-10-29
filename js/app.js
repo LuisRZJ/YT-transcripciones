@@ -43,7 +43,9 @@ import {
 	dismissCloudUpdatesBanner,
 	importFromCloud,
 	isCloudRestoreModalOpen,
-	restoreFromCloud
+	restoreFromCloud,
+	checkCloudSyncStatus,
+	syncBidirectionalFromDashboard
 } from "./funciones/cloud-sync.js";
 import { checkForAppUpdates, initServiceWorkerManager } from "./funciones/sw-manager.js";
 import { fetchAudioDownload, triggerBrowserDownload, formatDuration } from "./funciones/audio-downloader.js";
@@ -553,6 +555,10 @@ async function handleGlobalClick(event) {
 			break;
 		case "close-history-modal":
 			closeHistoryModal();
+			break;
+		case "sync-now":
+		case "backup-cloud":
+			await syncBidirectionalFromDashboard();
 			break;
 		case "backup-to-cloud":
 			await backupToCloud();

@@ -4,6 +4,7 @@ import { normalizeOpenRouterKey } from "./api-client.js";
 import { showToast } from "./ui-actions.js";
 import { getHistory, openHistoryModal, renderHistoryList, saveHistory } from "./history.js";
 import { getFolders, saveFolders, getCategories, saveCategories } from "./taxonomy.js";
+import { renderDashboard } from "./dashboard.js";
 
 let pendingCloudUpdates = [];
 
@@ -137,28 +138,60 @@ export function isCloudRestoreModalOpen() {
     return state.cloudRestore.isVisible;
 }
 
-export async function checkCloudOnSecretSave(syncSecret) {
+export async function checkCloudSyncStatus(providedSecret) {
+    const syncSecret = providedSecret || localStorage.getItem(STORAGE_KEYS.vercelSyncSecret);
+    const localHistory = getHistory();
+    const pendingPush = localHistory.filter((item) => item.synced !== true && item.videoId !== "unknown").length;
+    state.syncStatus.pendingPushCount = pendingPush;
+
     if (!syncSecret) {
+        state.syncStatus.pendingPullCount = 0;
+        state.syncStatus.isChecking = false;
+        renderDashboard();
         return;
     }
+
+    state.syncStatus.isChecking = true;
+    renderDashboard();
 
     try {
         const restoreData = await getCloudRestoreData(syncSecret);
-        if (restoreData && restoreData.missingCount > 0) {
-            showCloudRestoreModal(restoreData.missingCount, restoreData.totalCount);
+        if (restoreData) {
+            state.syncStatus.pendingPullCount = restoreData.missingCount || 0;
+            state.syncStatus.lastCheckedAt = Date.now();
+        } else {
+            state.syncStatus.pendingPullCount = 0;
         }
     } catch (e) {
-        // Fallo silencioso para no interrumpir al usuario.
+        // Fallo silencioso
+    } finally {
+        state.syncStatus.isChecking = false;
+        renderDashboard();
     }
 }
 
-export async function checkCloudOnPageLoad() {
-    const syncSecret = localStorage.getItem(STORAGE_KEYS.vercelSyncSecret);
+export async function checkCloudOnSecretSave(syncSecret) {
     if (!syncSecret) {
+        checkCloudSyncStatus();
         return;
     }
 
-    await checkCloudOnSecretSave(syncSecret);
+    await checkCloudSyncStatus(syncSecret);
+    if (state.syncStatus.pendingPullCount > 0) {
+        showCloudRestoreModal(state.syncStatus.pendingPullCount, state.cloudRestore.totalCount);
+    }
+}
+export async function checkCloudOnPageLoad() {
+    const syncSecret = localStorage.getItem(STORAGE_KEYS.vercelSyncSecret);
+    if (!syncSecret) {
+        checkCloudSyncStatus();
+        return;
+    }
+
+    await checkCloudSyncStatus(syncSecret);
+    if (state.syncStatus.pendingPullCount > 0 && !isCloudRestoreModalOpen()) {
+        showCloudRestoreModal(state.syncStatus.pendingPullCount, state.cloudRestore.totalCount);
+    }
 }
 
 export function continueWithLocalData() {
@@ -626,5 +659,250 @@ export async function backupToCloud() {
         setBackupUiState("Error", false);
         showToast("Ocurrió un error al respaldar.");
         setTimeout(() => setBackupUiState("Respaldar", false), 3000);
+    }
+}
+/**
+ * Sincronización bidireccional interactiva activada desde la tarjeta del Dashboard.
+ * Realiza descarga (pull) de elementos remotos faltantes y subida (push) de pendientes locales,
+ * reportando el avance en tiempo real en la tarjeta.
+ */
+export async function syncBidirectionalFromDashboard() {
+    const syncSecret = localStorage.getItem(STORAGE_KEYS.vercelSyncSecret);
+    if (!syncSecret) {
+        showToast("Falta el Secret de Vercel. Configúralo en Ajustes.");
+        const { openSettingsModal } = await import("./settings.js");
+        openSettingsModal();
+        return;
+    }
+
+    if (state.syncStatus.isSyncing) {
+        return;
+    }
+
+    state.syncStatus.isSyncing = true;
+    state.syncStatus.currentStep = "Comprobando nube...";
+    renderDashboard();
+
+    try {
+        // 1. Fase de Descarga (PULL)
+        const listRes = await fetch("/api/pull", {
+            headers: { Authorization: `Bearer ${syncSecret}` }
+        });
+
+        if (!listRes.ok) {
+            throw new Error(`Error conectando con la nube (HTTP ${listRes.status})`);
+        }
+
+        const listData = await listRes.json();
+        const cloudIdsRaw = listData.fileIds || [];
+
+        // 1.1 Descargar claves si existen
+        const keysIndex = cloudIdsRaw.indexOf("_api_keys");
+        if (keysIndex !== -1) {
+            cloudIdsRaw.splice(keysIndex, 1);
+            try {
+                const pullRes = await fetch("/api/pull?id=_api_keys", {
+                    headers: { Authorization: `Bearer ${syncSecret}` }
+                });
+                if (pullRes.ok) {
+                    const pullData = await pullRes.json();
+                    const keyData = pullData.data || {};
+                    if (hasOwn(keyData, "supadata_api_key") && keyData.supadata_api_key) {
+                        localStorage.setItem(STORAGE_KEYS.supadataApiKey, keyData.supadata_api_key);
+                    }
+                    if (hasOwn(keyData, "openrouter_api_key") && keyData.openrouter_api_key) {
+                        localStorage.setItem(STORAGE_KEYS.openrouterApiKey, keyData.openrouter_api_key);
+                    }
+                    if (hasOwn(keyData, "openrouter_model_id") && keyData.openrouter_model_id) {
+                        localStorage.setItem(STORAGE_KEYS.openrouterModelId, keyData.openrouter_model_id);
+                    }
+                    if (hasOwn(keyData, "google_ai_studio_api_key") && keyData.google_ai_studio_api_key) {
+                        localStorage.setItem(STORAGE_KEYS.googleAiStudioApiKey, keyData.google_ai_studio_api_key);
+                    }
+                    if (hasOwn(keyData, "ai_provider_preference") && keyData.ai_provider_preference) {
+                        localStorage.setItem(STORAGE_KEYS.aiProviderPreference, keyData.ai_provider_preference);
+                    }
+                    if (hasOwn(keyData, "rapidapi_key") && keyData.rapidapi_key) {
+                        localStorage.setItem(STORAGE_KEYS.rapidApiKey, keyData.rapidapi_key);
+                    }
+                    if (hasOwn(keyData, "audio_format") && keyData.audio_format) {
+                        localStorage.setItem(STORAGE_KEYS.audioFormat, keyData.audio_format);
+                    }
+                    if (hasOwn(keyData, "audio_quality") && keyData.audio_quality) {
+                        localStorage.setItem(STORAGE_KEYS.audioQuality, keyData.audio_quality);
+                    }
+                }
+            } catch (e) {
+                // Continuar si falla
+            }
+        }
+
+        // 1.2 Descargar taxonomía si existe
+        const taxIndex = cloudIdsRaw.indexOf("_taxonomy");
+        if (taxIndex !== -1) {
+            cloudIdsRaw.splice(taxIndex, 1);
+            try {
+                const taxRes = await fetch("/api/pull?id=_taxonomy", {
+                    headers: { Authorization: `Bearer ${syncSecret}` }
+                });
+                if (taxRes.ok) {
+                    const taxJson = await taxRes.json();
+                    const taxData = taxJson.data || {};
+                    if (Array.isArray(taxData.folders)) {
+                        const localFolders = getFolders();
+                        const mergedFolders = [...localFolders];
+                        for (const rF of taxData.folders) {
+                            if (!mergedFolders.some((lf) => lf.id === rF.id)) {
+                                mergedFolders.push(rF);
+                            }
+                        }
+                        saveFolders(mergedFolders);
+                    }
+                    if (Array.isArray(taxData.categories)) {
+                        const localCats = getCategories();
+                        const mergedCats = [...localCats];
+                        for (const rC of taxData.categories) {
+                            if (!mergedCats.some((lc) => lc.id === rC.id)) {
+                                mergedCats.push(rC);
+                            }
+                        }
+                        saveCategories(mergedCats);
+                    }
+                }
+            } catch (e) {
+                // Continuar si falla
+            }
+        }
+
+        // 1.3 Descargar transcripciones remotas faltantes
+        let localHistory = getHistory();
+        const localVideoIds = new Set(localHistory.map((item) => item.videoId));
+        const missingLocally = cloudIdsRaw.filter((id) => !localVideoIds.has(id));
+
+        for (let i = 0; i < missingLocally.length; i++) {
+            const pullId = missingLocally[i];
+            state.syncStatus.currentStep = `Descargando ${i + 1}/${missingLocally.length}...`;
+            renderDashboard();
+
+            try {
+                const pullRes = await fetch(`/api/pull?id=${pullId}`, {
+                    headers: { Authorization: `Bearer ${syncSecret}` }
+                });
+                if (pullRes.ok) {
+                    const pullData = await pullRes.json();
+                    if (pullData.data) {
+                        const importedItem = {
+                            ...pullData.data,
+                            synced: true,
+                            id: pullData.data.id || `hist_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
+                        };
+                        localHistory.push(importedItem);
+                        saveHistory(localHistory);
+                    }
+                }
+            } catch (err) {
+                console.warn(`Error al descargar ${pullId}:`, err);
+            }
+        }
+
+        // 2. Fase de Subida (PUSH)
+        state.syncStatus.currentStep = "Respaldando ajustes...";
+        renderDashboard();
+
+        try {
+            const sApiKey = localStorage.getItem(STORAGE_KEYS.supadataApiKey);
+            const orApiKey = normalizeOpenRouterKey(localStorage.getItem(STORAGE_KEYS.openrouterApiKey));
+            const modelId = localStorage.getItem(STORAGE_KEYS.openrouterModelId);
+            const googleKey = localStorage.getItem(STORAGE_KEYS.googleAiStudioApiKey);
+            const providerPref = localStorage.getItem(STORAGE_KEYS.aiProviderPreference) || "openrouter";
+            const rapidKey = localStorage.getItem(STORAGE_KEYS.rapidApiKey);
+            const audioFormat = localStorage.getItem(STORAGE_KEYS.audioFormat) || "mp3";
+            const audioQuality = localStorage.getItem(STORAGE_KEYS.audioQuality) || "128";
+
+            await fetch("/api/push", {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${syncSecret}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    videoId: "_api_keys",
+                    data: {
+                        supadata_api_key: sApiKey || null,
+                        openrouter_api_key: orApiKey || null,
+                        openrouter_model_id: modelId || null,
+                        google_ai_studio_api_key: googleKey || null,
+                        ai_provider_preference: providerPref,
+                        rapidapi_key: rapidKey || null,
+                        audio_format: audioFormat,
+                        audio_quality: audioQuality
+                    }
+                })
+            });
+        } catch (e) {
+            // Continuar
+        }
+
+        try {
+            const localFolders = getFolders();
+            const localCategories = getCategories();
+            await fetch("/api/push", {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${syncSecret}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    videoId: "_taxonomy",
+                    data: {
+                        folders: localFolders,
+                        categories: localCategories
+                    }
+                })
+            });
+        } catch (e) {
+            // Continuar
+        }
+
+        localHistory = getHistory();
+        const pendingPush = localHistory.filter((item) => item.synced !== true && item.videoId !== "unknown");
+
+        for (let j = 0; j < pendingPush.length; j++) {
+            const item = pendingPush[j];
+            state.syncStatus.currentStep = `Subiendo ${j + 1}/${pendingPush.length}...`;
+            renderDashboard();
+
+            try {
+                const pushRes = await fetch("/api/push", {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${syncSecret}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ videoId: item.videoId, data: item })
+                });
+
+                if (pushRes.ok) {
+                    item.synced = true;
+                    saveHistory(localHistory);
+                }
+            } catch (err) {
+                console.warn(`Error al subir ${item.videoId}:`, err);
+            }
+        }
+
+        state.syncStatus.pendingPushCount = localHistory.filter((item) => item.synced !== true && item.videoId !== "unknown").length;
+        state.syncStatus.pendingPullCount = 0;
+        state.syncStatus.currentStep = "";
+        state.syncStatus.lastCheckedAt = Date.now();
+        showToast("¡Sincronización en la nube completada con éxito!");
+    } catch (err) {
+        showToast(`Error al sincronizar: ${err.message || "Error de red"}`);
+    } finally {
+        state.syncStatus.isSyncing = false;
+        state.syncStatus.isChecking = false;
+        state.syncStatus.currentStep = "";
+        renderDashboard();
+        renderHistoryList();
     }
 }
