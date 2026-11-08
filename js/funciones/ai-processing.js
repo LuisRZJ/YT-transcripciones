@@ -1,5 +1,6 @@
 import { callOpenRouter, callGoogleAiStudio } from "./api-client.js";
 import { DEFAULT_OPENROUTER_MODEL_ID, DEFAULT_AI_PROVIDER, GOOGLE_AI_STUDIO_MODEL, STORAGE_KEYS } from "./state.js";
+import { normalizeOpenRouterUsage, normalizeGoogleUsage } from "./usage-meter.js";
 
 function getChoiceContent(result, contextLabel) {
     const content = result?.choices?.[0]?.message?.content;
@@ -56,7 +57,7 @@ function isFatalProviderError(error) {
  * Si el error del primario es fatal (401/402/403), no hace fallback.
  * @returns {Promise<string>} El texto devuelto por el proveedor que respondió
  */
-async function callAiWithFallback({ prompt, openRouterPayload, openRouterKey, googleKey }) {
+async function callAiWithFallback({ prompt, openRouterPayload, openRouterKey, googleKey, onUsage }) {
     const preference = getAiProviderPreference();
     const primary = preference;
     const fallback = preference === "openrouter" ? "google" : "openrouter";
@@ -64,9 +65,16 @@ async function callAiWithFallback({ prompt, openRouterPayload, openRouterKey, go
     async function callProvider(provider) {
         if (provider === "openrouter") {
             const result = await callOpenRouter(openRouterPayload, openRouterKey);
+            if (typeof onUsage === "function") {
+                onUsage(normalizeOpenRouterUsage(result, result._elapsedMs));
+            }
             return getChoiceContent(result, "el procesamiento");
         } else {
-            return callGoogleAiStudio(prompt, googleKey, GOOGLE_AI_STUDIO_MODEL);
+            const googleRes = await callGoogleAiStudio(prompt, googleKey, GOOGLE_AI_STUDIO_MODEL);
+            if (typeof onUsage === "function") {
+                onUsage(normalizeGoogleUsage(googleRes.rawResult, googleRes.elapsedMs));
+            }
+            return googleRes.text;
         }
     }
 
@@ -110,7 +118,7 @@ export function chunkText(text, maxChars = 4000) {
     return chunks;
 }
 
-export async function formatChunkWithAI(chunk, openRouterKey, googleKey) {
+export async function formatChunkWithAI(chunk, openRouterKey, googleKey, onUsage) {
     const modelId = getSelectedModelId();
 
     const prompt = `Tienes un bloque de una transcripción. Tu ÚNICA TAREA es devolver el mismo texto exacto, pero añadiendo saltos de línea dobles (\\n\\n) donde lógicamente termine un párrafo o idea. 
@@ -137,10 +145,10 @@ ${chunk}`;
         ]
     };
 
-    return callAiWithFallback({ prompt, openRouterPayload, openRouterKey, googleKey });
+    return callAiWithFallback({ prompt, openRouterPayload, openRouterKey, googleKey, onUsage });
 }
 
-export async function generateMetaWithAI(fullText, openRouterKey, googleKey) {
+export async function generateMetaWithAI(fullText, openRouterKey, googleKey, onUsage) {
     const modelId = getSelectedModelId();
     const textContext = fullText.substring(0, 8000);
 
@@ -168,6 +176,6 @@ ${textContext}`;
         ]
     };
 
-    const rawMeta = await callAiWithFallback({ prompt, openRouterPayload, openRouterKey, googleKey });
+    const rawMeta = await callAiWithFallback({ prompt, openRouterPayload, openRouterKey, googleKey, onUsage });
     return parseMetaJson(rawMeta);
 }

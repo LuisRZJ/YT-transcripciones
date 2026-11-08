@@ -125,6 +125,7 @@ export async function fetchSupadataTranscript(videoUrl, apiKey) {
 export async function callOpenRouter(payload, openRouterKey) {
     const normalizedOpenRouterKey = validateOpenRouterKey(openRouterKey);
 
+    const startTime = typeof performance !== "undefined" ? performance.now() : Date.now();
     let response;
     try {
         response = await fetchWithRetry(OPENROUTER_URL, {
@@ -143,6 +144,9 @@ export async function callOpenRouter(payload, openRouterKey) {
         throw apiError;
     }
 
+    const endTime = typeof performance !== "undefined" ? performance.now() : Date.now();
+    const elapsedMs = Math.max(1, endTime - startTime);
+
     const result = await response.json().catch(() => {
         throw new Error("OpenRouter: Respuesta invalida (no JSON).");
     });
@@ -157,6 +161,7 @@ export async function callOpenRouter(payload, openRouterKey) {
         throw new Error("OpenRouter: La respuesta no incluyo contenido procesable.");
     }
 
+    result._elapsedMs = elapsedMs;
     return result;
 }
 
@@ -220,6 +225,7 @@ export async function callGoogleAiStudio(prompt, googleKey, modelId) {
     }
     lastGoogleCallTime = Date.now();
 
+    const startTime = typeof performance !== "undefined" ? performance.now() : Date.now();
     const url = `${GOOGLE_AI_STUDIO_BASE_URL}/${modelId}:generateContent?key=${key}`;
 
     let response;
@@ -245,6 +251,9 @@ export async function callGoogleAiStudio(prompt, googleKey, modelId) {
         throw apiError;
     }
 
+    const endTime = typeof performance !== "undefined" ? performance.now() : Date.now();
+    const elapsedMs = Math.max(1, endTime - startTime);
+
     const result = await response.json().catch(() => {
         throw new Error("Google AI Studio: Respuesta inválida (no JSON).");
     });
@@ -260,5 +269,9 @@ export async function callGoogleAiStudio(prompt, googleKey, modelId) {
         throw new Error("Google AI Studio: La respuesta no incluyó contenido procesable.");
     }
 
-    return text.trim();
+    return {
+        text: text.trim(),
+        rawResult: result,
+        elapsedMs
+    };
 }

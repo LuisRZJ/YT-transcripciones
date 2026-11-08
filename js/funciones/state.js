@@ -25,6 +25,12 @@ export const DEFAULT_AUDIO_FORMAT = "mp3";
 export const DEFAULT_AUDIO_QUALITY = "128";
 export const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 días en ms
 
+// Tarifa estimada para gemini-3.5-flash-lite en tier de pago (USD por 1M de tokens)
+export const GOOGLE_AI_STUDIO_PRICING = {
+    inputPerM: 0.30,
+    outputPerM: 2.50
+};
+
 
 export const state = {
     currentTab: "text",
@@ -41,6 +47,7 @@ export const state = {
         summary: "",
         formattedText: ""
     },
+    aiUsage: null,
     forceNextFetch: false,
     syncStatus: {
         isSyncing: false,

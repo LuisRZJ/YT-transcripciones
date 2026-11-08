@@ -2,6 +2,59 @@ import { refs, rerenderIcons } from "./dom.js";
 import { chunkText, formatChunkWithAI, generateMetaWithAI } from "./ai-processing.js";
 import { state, STORAGE_KEYS } from "./state.js";
 import { renderSummaryContent } from "./ui-actions.js";
+import { createUsageTracker, formatTokens, formatSpeed, formatCost } from "./usage-meter.js";
+
+export function renderUsageLive(tracker) {
+    if (!refs.aiUsageLive) return;
+    const snap = tracker.snapshot();
+
+    if (refs.aiUsageLiveTokens) {
+        refs.aiUsageLiveTokens.textContent = formatTokens(snap.totalTokens);
+    }
+
+    if (refs.aiUsageLiveSpeed) {
+        if (snap.isInFlight) {
+            refs.aiUsageLiveSpeed.innerHTML = `<span class="animate-pulse text-purple-600 font-semibold">procesando...</span>`;
+        } else {
+            refs.aiUsageLiveSpeed.textContent = formatSpeed(snap.lastTokensPerSec);
+        }
+    }
+
+    if (refs.aiUsageLiveSpeedSub) {
+        refs.aiUsageLiveSpeedSub.textContent = snap.isInFlight
+            ? "en curso"
+            : (snap.callCount > 1 ? "último bloque" : "velocidad");
+    }
+
+    if (refs.aiUsageLiveCost) {
+        refs.aiUsageLiveCost.textContent = formatCost(snap.costUsd, snap.costEstimated);
+    }
+}
+
+export function renderUsageSummary(usage) {
+    if (!refs.aiUsageSummary) return;
+
+    if (!usage || (usage.totalTokens === 0 && usage.costUsd === 0)) {
+        refs.aiUsageSummary.classList.add("hidden");
+        return;
+    }
+
+    if (refs.aiSummaryTokens) {
+        refs.aiSummaryTokens.textContent = formatTokens(usage.totalTokens);
+    }
+
+    if (refs.aiSummarySpeed) {
+        const speedVal = usage.avgTokensPerSec || usage.lastTokensPerSec || 0;
+        refs.aiSummarySpeed.textContent = formatSpeed(speedVal);
+    }
+
+    if (refs.aiSummaryCost) {
+        refs.aiSummaryCost.textContent = formatCost(usage.costUsd, usage.costEstimated);
+    }
+
+    refs.aiUsageSummary.classList.remove("hidden");
+}
+
 
 function buildAiErrorMessage(error) {
     const status = typeof error?.status === "number" ? error.status : null;
@@ -86,6 +139,13 @@ export async function processAndRender(data) {
     const openRouterKey = localStorage.getItem(STORAGE_KEYS.openrouterApiKey);
     const googleKey = localStorage.getItem(STORAGE_KEYS.googleAiStudioApiKey);
 
+    const tracker = createUsageTracker();
+    state.aiUsage = null;
+    renderUsageLive(tracker);
+    if (refs.aiUsageSummary) {
+        refs.aiUsageSummary.classList.add("hidden");
+    }
+
     try {
         const chunks = chunkText(rawText, 3500);
         let assembledFormattedText = "";
@@ -104,8 +164,20 @@ export async function processAndRender(data) {
             let formattedChunk = "";
 
             try {
-                formattedChunk = await formatChunkWithAI(chunks[i], openRouterKey, googleKey);
+                tracker.startCall();
+                renderUsageLive(tracker);
+                formattedChunk = await formatChunkWithAI(
+                    chunks[i],
+                    openRouterKey,
+                    googleKey,
+                    (usage) => {
+                        tracker.add(usage);
+                        renderUsageLive(tracker);
+                    }
+                );
             } catch (chunkError) {
+                tracker.add(null);
+                renderUsageLive(tracker);
                 if (isFatalAiRequestError(chunkError)) {
                     throw chunkError;
                 }
@@ -131,8 +203,20 @@ export async function processAndRender(data) {
         let metaData;
 
         try {
-            metaData = await generateMetaWithAI(assembledFormattedText, openRouterKey, googleKey);
+            tracker.startCall();
+            renderUsageLive(tracker);
+            metaData = await generateMetaWithAI(
+                assembledFormattedText,
+                openRouterKey,
+                googleKey,
+                (usage) => {
+                    tracker.add(usage);
+                    renderUsageLive(tracker);
+                }
+            );
         } catch (metaError) {
+            tracker.add(null);
+            renderUsageLive(tracker);
             console.warn("No se pudo generar titulo/resumen con IA:", metaError);
             metaData = {
                 title: "Transcripción procesada",
@@ -169,6 +253,9 @@ export async function processAndRender(data) {
         if (refs.aiSummary) {
             renderSummaryContent(refs.aiSummary, state.finalAiData.summary);
         }
+
+        state.aiUsage = tracker.snapshot();
+        renderUsageSummary(state.aiUsage);
     } catch (aiError) {
         console.error("Error en IA Chunking:", aiError);
         const readableMessage = `No se pudo completar el procesado con IA. ${buildAiErrorMessage(aiError)} Mostrando version cruda.`;
@@ -256,6 +343,14 @@ export function showRawFallback(text, message) {
 
     if (refs.aiSummary) {
         refs.aiSummary.textContent = message;
+    }
+
+    if (refs.aiUsageSummary) {
+        if (state.aiUsage && state.aiUsage.totalTokens > 0) {
+            renderUsageSummary(state.aiUsage);
+        } else {
+            refs.aiUsageSummary.classList.add("hidden");
+        }
     }
 
     state.finalAiData = {

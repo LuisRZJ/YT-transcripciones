@@ -2,7 +2,7 @@ import { byId, refs, rerenderIcons } from "./dom.js";
 import { state, STORAGE_KEYS } from "./state.js";
 import { extractVideoId } from "./youtube.js";
 import { renderSummaryContent, showToast, stripMarkdown, switchTab } from "./ui-actions.js";
-import { renderVideoMetaPreview } from "./processing.js";
+import { renderVideoMetaPreview, renderUsageSummary } from "./processing.js";
 import { renderDashboard } from "./dashboard.js";
 import {
     COLOR_PALETTE,
@@ -137,7 +137,8 @@ export function saveTranscript() {
         authorName: resolvedAuthor,
         synced: false,
         folderId: prevFolderId,
-        categories: prevCategories
+        categories: prevCategories,
+        aiUsage: state.aiUsage || null
     };
 
     history.unshift(newItem);
@@ -886,6 +887,9 @@ export function loadFromHistory(id) {
     if (refs.aiSummary) {
         renderSummaryContent(refs.aiSummary, state.finalAiData.summary);
     }
+
+    state.aiUsage = item.aiUsage || null;
+    renderUsageSummary(state.aiUsage);
 
     if (refs.errorState) {
         refs.errorState.classList.add("hidden");
