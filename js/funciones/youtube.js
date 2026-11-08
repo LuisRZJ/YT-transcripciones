@@ -20,22 +20,30 @@ export function extractVideoId(url) {
             }
 
             if (urlObj.pathname.startsWith("/shorts/")) {
-                return urlObj.pathname.split("/")[2];
+                const id = urlObj.pathname.split("/")[2];
+                return id ? id.split("?")[0] : null;
+            }
+
+            if (urlObj.pathname.startsWith("/live/")) {
+                const id = urlObj.pathname.split("/")[2];
+                return id ? id.split("?")[0] : null;
             }
 
             if (urlObj.pathname.startsWith("/embed/")) {
-                return urlObj.pathname.split("/")[2];
+                const id = urlObj.pathname.split("/")[2];
+                return id ? id.split("?")[0] : null;
             }
 
             if (urlObj.pathname.startsWith("/v/")) {
-                return urlObj.pathname.split("/")[2];
+                const id = urlObj.pathname.split("/")[2];
+                return id ? id.split("?")[0] : null;
             }
         }
     } catch (e) {
         // Fallback a expresión regular si falla el parser de URL
     }
 
-    const match = trimmed.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/s]{11})/i);
+    const match = trimmed.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts|live)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/s]{11})/i);
     if (match && match[1]) {
         return match[1];
     }

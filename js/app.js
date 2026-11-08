@@ -339,9 +339,12 @@ async function runTranscriptFlow(url, videoId) {
 	}
 
 	try {
+		// Normalización canónica para garantizar compatibilidad universal con Supadata (watch, shorts, live, etc.)
+		const canonicalUrl = `https://www.youtube.com/watch?v=${videoId}`;
+
 		// Ejecución simultánea: transcripción de Supadata + metadatos y miniatura oficial (sin cuota)
 		const [transcriptResult, youtubeMetaResult] = await Promise.allSettled([
-			fetchSupadataTranscript(url, apiKey),
+			fetchSupadataTranscript(canonicalUrl, apiKey),
 			fetchYouTubeMetadata(videoId)
 		]);
 
@@ -450,7 +453,7 @@ async function handleTranscriptSubmit(event) {
 	const videoId = extractVideoId(url);
 	if (!videoId) {
 		if (refs.errorMessage) {
-			refs.errorMessage.textContent = "Por favor ingresa una URL válida de YouTube (ej. https://youtube.com/watch?v=... o https://youtube.com/shorts/...).";
+			refs.errorMessage.textContent = "Por favor ingresa una URL válida de YouTube (ej. https://youtube.com/watch?v=..., shorts/... o live/...).";
 		}
 
 		if (refs.errorState) {

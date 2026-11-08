@@ -1,6 +1,6 @@
 const NETWORK_TIMEOUT_MS = 5000;
-const PRECACHE_CACHE_NAME = "yt-transcripciones-precache-v2";
-const RUNTIME_CACHE_NAME = "yt-transcripciones-runtime-v2";
+const PRECACHE_CACHE_NAME = "yt-transcripciones-precache-v3";
+const RUNTIME_CACHE_NAME = "yt-transcripciones-runtime-v3";
 
 const PRECACHE_URLS = [
     "/",
